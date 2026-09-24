@@ -1,4 +1,4 @@
-# Vinted Seller Location Filter
+# Vinted Country Filter
 
 Chrome/Edge/Brave extension that adds a country badge (e.g. `🇮🇪 IE`, `🇫🇷 FR`) to every
 Vinted listing and lets you dim or hide items from sellers outside your country.

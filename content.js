@@ -224,12 +224,12 @@
     if (!panel) {
       panel = document.createElement("aside");
       panel.className = "vlf-panel";
-      panel.setAttribute("aria-label", "Seller location filter");
+      panel.setAttribute("aria-label", "Vinted Country Filter");
       panel.innerHTML = `
         <div class="vlf-head">
           <span class="vlf-logo" aria-hidden="true">${PIN_SVG}</span>
           <div class="vlf-titles"><span class="vlf-title">Seller location</span><span class="vlf-stats" role="status" aria-live="polite"></span></div>
-          <input type="checkbox" class="vlf-switch vlf-enabled" role="switch" aria-label="Seller location filter on">
+          <input type="checkbox" class="vlf-switch vlf-enabled" role="switch" aria-label="Vinted Country Filter on">
           <button type="button" class="vlf-toggle"><svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
         </div>
         <div class="vlf-body">
