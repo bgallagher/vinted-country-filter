@@ -42,8 +42,11 @@
 .vlf-panel select, .vlf-panel input { margin: 0; letter-spacing: normal; text-transform: none; font-family: inherit; }
 .vlf-ico { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-.vlf-head { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 8px 6px 8px 12px; }
-.vlf-panel:not(.vlf-collapsed) .vlf-head { border-bottom: 1px solid var(--vlf-border); }
+/* Header row is anchored at the bottom so the toggle never moves; the body opens upward above it. */
+.vlf-panel { display: flex; flex-direction: column-reverse; }
+.vlf-head { flex: none; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 8px 6px 8px 12px;
+  border-top: 1px solid transparent; transition: border-color 0.25s ease; }
+.vlf-panel:not(.vlf-collapsed) .vlf-head { border-top-color: var(--vlf-border); }
 .vlf-logo { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: #007782; }
 .vlf-logo svg { width: 15px; height: 15px; }
 .vlf-logo path { fill: #ffffff; }
@@ -60,9 +63,14 @@
 .vlf-panel .vlf-toggle:focus-visible { outline: 2px solid var(--vlf-accent); outline-offset: 1px; }
 .vlf-toggle svg { width: 18px; height: 18px; transition: transform 0.2s ease; }
 .vlf-collapsed .vlf-toggle svg { transform: rotate(180deg); }
-.vlf-collapsed .vlf-body { display: none; }
 
-.vlf-body { display: flex; flex-direction: column; gap: 14px; padding: 12px; }
+/* Animated collapse. max-height must stay above the expanded body (~230px);
+   raise it if settings are added. visibility switches off only after the close
+   animation, which also takes the hidden controls out of the tab order. */
+.vlf-body { display: flex; flex-direction: column; gap: 14px; max-height: 320px; padding: 12px; overflow: hidden;
+  transition: max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease 0.05s, visibility 0s linear 0s; }
+.vlf-collapsed .vlf-body { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; visibility: hidden;
+  transition: max-height 0.25s ease, padding 0.25s ease, opacity 0.12s ease, visibility 0s linear 0.25s; }
 /* .vlf-panel prefix so these win over the reset above */
 .vlf-panel .vlf-label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 600; color: var(--vlf-text); }
 .vlf-panel .vlf-hint { margin-top: 5px; font-size: 11.5px; line-height: 1.35; color: var(--vlf-muted); }

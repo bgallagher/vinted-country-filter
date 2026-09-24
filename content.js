@@ -24,12 +24,28 @@
     }),
   ]);
 
+  // Reloading or updating the extension cuts off the copy of this script
+  // already running in open tabs: every chrome.* call then throws "Extension
+  // context invalidated". Check before each one, and once cut off, stop
+  // quietly and remove the panel (its controls could no longer save).
+  let dead = false;
+  let observer = null;
+  function alive() {
+    if (dead) return false;
+    if (chrome.runtime && chrome.runtime.id) return true;
+    dead = true;
+    if (observer) observer.disconnect();
+    clearTimeout(saveTimer);
+    if (panel) panel.remove();
+    return false;
+  }
+
   let saveTimer = null;
   function saveUsers() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => chrome.storage.local.set({ users }), 1000);
+    saveTimer = setTimeout(() => { if (alive()) chrome.storage.local.set({ users }); }, 1000);
   }
-  function saveSettings() { chrome.storage.sync.set({ settings }); }
+  function saveSettings() { if (alive()) chrome.storage.sync.set({ settings }); }
 
   // Pick up changes made on the options page or in another tab.
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -181,8 +197,8 @@
 
   let raf = 0;
   function schedule() {
-    if (raf) return;
-    raf = requestAnimationFrame(() => { raf = 0; apply(); });
+    if (raf || !alive()) return;
+    raf = requestAnimationFrame(() => { raf = 0; if (alive()) apply(); });
   }
 
   // ---------- panel
@@ -260,7 +276,7 @@
   ready.then(() => {
     window.postMessage({ type: "vlf:rescan" }, location.origin);
     const ours = (n) => n.nodeType !== 1 || n.classList.contains("vlf-badge") || (panel && panel.contains(n));
-    new MutationObserver((muts) => {
+    observer = new MutationObserver((muts) => {
       const external = muts.some((m) =>
         // We never remove elements, so a removed one (even our panel or a
         // badge, e.g. during React hydration) always means a page change.
@@ -268,7 +284,8 @@
         (!(ours(m.target) || (m.target.parentElement && ours(m.target.parentElement))) &&
           ![...m.addedNodes].every(ours)));
       if (external) schedule();
-    }).observe(document.documentElement, { childList: true, subtree: true }); // not body: it can be replaced
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true }); // not body: it can be replaced
     let scrollT = 0;
     window.addEventListener("scroll", () => { clearTimeout(scrollT); scrollT = setTimeout(schedule, 250); }, { passive: true });
     schedule();

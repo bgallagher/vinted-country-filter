@@ -47,6 +47,7 @@ Search results never include the seller's location, only their user ID.
 
 - Cards are found with `[data-testid^="product-item-id-"]`, and the grid cell with `closest('[data-testid="grid-item"]')`. The badge goes inside `[class*="image-container"]`.
 - `apply()` runs from `requestAnimationFrame` (`schedule()`), triggered by a MutationObserver, scroll, and new data. It only writes to the DOM when a value has changed, and the observer ignores the extension's own nodes, so its writes don't retrigger it.
+- The panel uses `flex-direction: column-reverse`, so its header row (with the collapse chevron) sits at the bottom and stays still while the body opens upward. The body collapses by animating `max-height`, capped at 320px (the expanded body is about 230px). Raise the cap if you add settings, or the body gets cut off.
 - Badge `data-state`: `match`, `other`, `loading` (lookup queued; pulses) or `unknown`. "Filter unknown" applies to `unknown` only, never to `loading`.
 - All CSS classes and message types use the `vlf` prefix. `content.css` resets common properties inside `.vlf-panel`, so panel rules that set margins need the `.vlf-panel` prefix to win.
 - The popup and panel follow the design canvas at https://claude.ai/artifact/1acQYEuLV1zsYxG2XtpJCN. Dark mode follows the OS (`prefers-color-scheme`).
