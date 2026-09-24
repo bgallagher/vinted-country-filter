@@ -117,6 +117,42 @@
 .vlf-badge[data-state="unknown"], .vlf-badge[data-state="loading"] { background: rgba(255, 255, 255, 0.94); color: #5f6566; }
 .vlf-badge[data-state="loading"] { animation: vlf-pulse 1.4s ease-in-out infinite; }
 
+/* ---------- "View photos" button on listing photos, always visible */
+.vlf-zoom { position: absolute; left: 8px; bottom: 8px; /* left: Vinted's favourite button is bottom-right */ z-index: 5;
+  display: grid; place-items: center; width: 32px; height: 32px; margin: 0; padding: 0;
+  border: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.94); color: #171717;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); cursor: pointer; }
+.vlf-zoom:hover { background: #ffffff; }
+.vlf-zoom:focus-visible { outline: 2px solid #007782; outline-offset: 2px; }
+.vlf-zoom svg { width: 18px; height: 18px; }
+
+/* ---------- photo lightbox (always dark) */
+.vlf-lightbox { position: fixed; inset: 0; z-index: 2147483600; display: flex; flex-direction: column;
+  background: rgba(12, 14, 15, 0.92); color: #ffffff;
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased;
+  animation: vlf-fade 0.15s ease; }
+.vlf-lightbox *, .vlf-lightbox *::before, .vlf-lightbox *::after { box-sizing: border-box; }
+.vlf-lightbox button, .vlf-lightbox a, .vlf-lightbox span { margin: 0; letter-spacing: normal; text-transform: none; font-family: inherit; }
+.vlf-lb-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+  padding: 64px 76px 8px; }
+.vlf-lb-img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px;
+  background: #1a1c1d; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
+.vlf-lb-nav, .vlf-lb-close { position: absolute; display: grid; place-items: center; width: 44px; height: 44px; padding: 0;
+  border: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.14); color: #ffffff; cursor: pointer; }
+.vlf-lb-nav:hover, .vlf-lb-close:hover { background: rgba(255, 255, 255, 0.26); }
+.vlf-lb-nav[hidden] { display: none; }
+.vlf-lb-nav svg, .vlf-lb-close svg { width: 22px; height: 22px; }
+.vlf-lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+.vlf-lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
+.vlf-lb-close { top: 12px; right: 16px; }
+.vlf-lb-bar { flex: none; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px 16px 20px; }
+.vlf-lb-count { color: rgba(255, 255, 255, 0.8); font-variant-numeric: tabular-nums; }
+.vlf-lightbox .vlf-lb-link { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 999px;
+  background: #007782; color: #ffffff; font-weight: 600; text-decoration: none; }
+.vlf-lightbox .vlf-lb-link:hover { background: #00646d; }
+.vlf-lightbox button:focus-visible, .vlf-lightbox a:focus-visible { outline: 2px solid #4cb3bc; outline-offset: 2px; }
+@keyframes vlf-fade { from { opacity: 0; } }
+
 /* ---------- filter states */
 .vlf-hidden { display: none !important; }
 .vlf-dimmed { opacity: 0.35; filter: grayscale(0.7); transition: opacity 0.2s ease, filter 0.2s ease; }
@@ -124,5 +160,5 @@
 
 @keyframes vlf-pulse { 50% { opacity: 0.55; } }
 @media (prefers-reduced-motion: reduce) {
-  .vlf-panel *, .vlf-badge, .vlf-dimmed { transition: none !important; animation: none !important; }
+  .vlf-panel *, .vlf-badge, .vlf-dimmed, .vlf-zoom, .vlf-lightbox { transition: none !important; animation: none !important; }
 }

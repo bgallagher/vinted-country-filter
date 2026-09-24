@@ -3,8 +3,8 @@
 Effective: 24 September 2026
 
 Vinted Country Filter ("the extension") is a browser extension that shows the
-country of each seller on Vinted listing pages and can dim or hide listings from sellers outside
-the country you choose. It is not affiliated with, endorsed by, or connected to Vinted.
+country of each seller on Vinted listing pages, can dim or hide listings from sellers outside
+the country you choose, and can show a listing's photos in a viewer. It is not affiliated with, endorsed by, or connected to Vinted.
 
 ## Summary
 
@@ -15,14 +15,18 @@ the country you choose. It is not affiliated with, endorsed by, or connected to 
 ## What the extension reads
 
 When you open a page on a Vinted website, the extension reads the listings shown on that page
-to find each listing's ID and its seller's Vinted user ID. It does this only on Vinted domains
-(for example vinted.ie or vinted.fr) and on no other websites.
+to find each listing's ID, its seller's Vinted user ID, and the link to its main photo. It does
+this only on Vinted domains (for example vinted.ie or vinted.fr) and on no other websites.
 
 ## Requests it makes
 
 To find out where a seller is based, the extension asks the Vinted website you are browsing for
 that seller's public profile, the same profile anyone can see on Vinted. From the reply, it keeps
 only the seller's country and, if the seller has made it public, their city.
+
+When you click a listing's "View photos" button, the extension loads that listing's page from
+the Vinted website to find the links to its other photos, and shows them. This happens only when
+you click the button, and nothing from the listing's page is stored.
 
 These requests go only to the Vinted website you are on, directly from your browser, in the same
 way the Vinted site itself loads data. Your browser sends its usual Vinted cookies with them, as
@@ -35,7 +39,7 @@ The extension stores two things, both using your browser's built-in extension st
 
 1. **Seller lookup cache (on your device only).** For each seller it has looked up, it keeps the
    Vinted user ID, country, country name, city (if public), and the time of the lookup. This
-   avoids asking Vinted for the same seller twice. Entries are discarded after 14 days.
+   avoids asking Vinted for the same seller twice. Entries are discarded after 90 days.
 2. **Your settings.** These are your chosen country, whether the filter is on, whether other
    listings are shown, dimmed or hidden, whether sellers with an unknown country are filtered,
    and whether the on-page panel is collapsed. They are stored with your browser's "sync"

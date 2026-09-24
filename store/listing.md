@@ -25,35 +25,22 @@ See each seller's country on Vinted and dim or hide listings from other countrie
 
 ### Description
 
+Don't list Vinted domains (vinted.ie, vinted.fr, …) in the description. The first submission was rejected for "keyword spam" over exactly that.
+
 ```
-Shipping from another country can cost several times more than shipping from a seller at home. Vinted doesn't show where a seller is based until you open each listing. This extension shows it on every listing in your search results, and can move the rest out of your way.
+Avoid expensive international shipping on Vinted. This extension adds a flag badge showing each seller's country to every listing in your search results.
 
-WHAT IT DOES
-• Adds a country badge with a flag to every listing, e.g. 🇮🇪 IE or 🇫🇷 FR
-• Teal badge = a seller in your country. Amber badge = a seller elsewhere.
-• Choose what happens to listings from other countries: show them (badge only), dim them, or hide them.
-• Hover over a badge to see the seller's city, when they've made it public.
-• Optionally filter out sellers whose country can't be determined.
-• An on/off switch: when it's off, all badges and filtering are removed until you turn it back on.
+• Teal badge: the seller is in your country. Amber badge: they're somewhere else.
+• Show, dim or hide listings from other countries.
+• See all of a listing's photos full size in a viewer, without leaving the results.
+• Your country defaults to the Vinted site you're on, or pick it yourself.
+• Settings are in a small on-page panel and the toolbar button, with an on/off switch.
 
-EASY TO USE
-• Works out of the box. Your country defaults to the Vinted site you're on (vinted.ie → Ireland, vinted.fr → France, and so on).
-• Shopping on another country's Vinted site? Pick your own country from the list.
-• Change settings from the small panel on Vinted pages or from the toolbar button. The toolbar popup also shows how many listings on the current page are shown.
-• Light and dark mode.
+On a new search, badges on screen appear within seconds. The rest of the page takes a minute or two, because Vinted limits how fast seller details can be requested.
 
-WORKS ON
-All Vinted websites in Europe, including vinted.ie, vinted.co.uk, vinted.fr, vinted.de, vinted.es, vinted.it, vinted.nl, vinted.be, vinted.pl, vinted.pt and more.
+Runs only on Vinted. Sends no data anywhere, and has no tracking or ads.
 
-GOOD TO KNOW
-• Vinted limits how quickly seller details can be requested. On a new search, badges fill in over a minute or two, with the listings on screen first. Sellers you've seen before appear instantly.
-• Hiding happens after Vinted has loaded a page, so a page of results may shrink to a handful. Using Vinted's own filters (price, size, condition) first helps.
-• Vinted can change its website at any time, which may temporarily stop the extension from working.
-
-PRIVACY
-The extension runs only on Vinted websites. It sends nothing to the developer or anyone else, and has no analytics, tracking or ads. Seller countries are cached in your browser for 14 days.
-
-This extension is independent and is not affiliated with, endorsed by, or connected to Vinted.
+Not affiliated with Vinted.
 ```
 
 ### Category
@@ -84,21 +71,23 @@ English
 ### Single purpose description
 
 ```
-Shows the country of each seller on Vinted listing pages, and lets the user dim or hide listings from sellers outside a country they choose.
+Improves browsing Vinted search results: shows each seller's country, dims or hides listings from sellers outside a country the user chooses, and previews a listing's photos without leaving the results.
 ```
+
+(Updated for 0.6.0, which adds the photo viewer. 0.5.0 was submitted with: "Shows the country of each seller on Vinted listing pages, and lets the user dim or hide listings from sellers outside a country they choose.")
 
 ### Permission justifications
 
 **storage**
 
 ```
-Saves the user's settings (chosen country, filter on/off, show/dim/hide choice) and a local cache of seller countries, so the same seller isn't looked up again. Cache entries expire after 14 days. Nothing is sent off the device.
+Saves the user's settings (chosen country, filter on/off, show/dim/hide choice) and a local cache of seller countries, so the same seller isn't looked up again. Cache entries expire after 90 days. Nothing is sent off the device.
 ```
 
 **Host permissions** (the Vinted sites listed in the content scripts)
 
 ```
-The extension only works on Vinted websites. On these sites it reads the listings on the page to get each listing's seller ID, requests that seller's public Vinted profile from the same site to read their country, and adds a country badge and dimming/hiding to the page. It runs on no other websites.
+The extension only works on Vinted websites. On these sites it reads the listings on the page to get each listing's seller ID, requests that seller's public Vinted profile from the same site to read their country, and adds a country badge and dimming/hiding to the page. When the user clicks "View photos" on a listing, it loads that listing's page from the same site to show its photos. It runs on no other websites.
 ```
 
 ### Are you using remote code?
@@ -129,4 +118,4 @@ Tick all three certifications:
 https://github.com/bgallagher/vinted-country-filter/blob/main/PRIVACY.md
 ```
 
-(This link works once `PRIVACY.md` is pushed to `main`.)
+

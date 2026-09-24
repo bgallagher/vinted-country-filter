@@ -1,18 +1,40 @@
 // Runs in the page's own JS world (MAIN) at document_start.
-// Job: learn which seller (user id) owns each listed item, and hand that
-// mapping to content.js via window.postMessage. It never modifies responses.
+// Job: learn which seller (user id) owns each listed item, and the URL of its
+// main photo at full size (f800), and hand that to content.js via
+// window.postMessage. It never modifies responses.
 (() => {
   if (window.__vlfInjected) return;
   window.__vlfInjected = true;
 
   const MSG = "vlf:owners";
 
-  const known = new Map(); // itemId -> userId, kept so late listeners can catch up
+  // itemId -> [userId, photoUrl], kept so late listeners can catch up.
+  // photoUrl is "" when the payload didn't include one.
+  const known = new Map();
 
-  function post(pairs) {
-    const fresh = pairs.filter(([i, u]) => known.get(i) !== u);
-    for (const [i, u] of fresh) known.set(i, u);
+  function post(entries) {
+    const fresh = [];
+    for (const [i, u, p = ""] of entries) {
+      const k = known.get(i);
+      if (k && k[0] === u && (!p || k[1] === p)) continue;
+      const entry = [i, u, p || (k && k[1]) || ""];
+      known.set(i, [entry[1], entry[2]]);
+      fresh.push(entry);
+    }
     if (fresh.length) window.postMessage({ type: MSG, pairs: fresh }, location.origin);
+  }
+
+  // Full-size (f800) URL of an item's main photo, from an API item object.
+  // Image URLs are signed per size, so it must come from the data, not be
+  // derived from a thumbnail URL.
+  function photoOf(node) {
+    const p = node.photo || (Array.isArray(node.photos) && node.photos[0]);
+    if (!p || typeof p !== "object") return "";
+    const f800 = Array.isArray(p.thumbnails) &&
+      p.thumbnails.find((t) => t && typeof t.url === "string" && t.url.includes("/f800/"));
+    // f800 first: it's the size the item page lists, so the lightbox can match
+    // this photo against the full list instead of loading it twice.
+    return (f800 && f800.url) || p.full_size_url || p.url || "";
   }
 
   // Walk any JSON payload looking for objects shaped like { id, user: { id } }.
@@ -23,7 +45,7 @@
       return;
     }
     if (node.id && node.user && typeof node.user === "object" && node.user.id) {
-      out.push([String(node.id), String(node.user.id)]);
+      out.push([String(node.id), String(node.user.id), photoOf(node)]);
     }
     for (const k in node) {
       const v = node[k];
@@ -96,7 +118,9 @@
       const next = tail.indexOf('"productItem"', 15);
       const seg = next > 0 ? tail.slice(0, next) : tail;
       const o = seg.match(/"ownerId":(\d+)/) || seg.match(/"user":\{"id":(\d+)/);
-      if (o) out.push([m[1], o[1]]);
+      // photos[0].url is the main photo at f800 on the search page.
+      const ph = seg.match(/"photos":\[\{"url":"([^"]+)"/);
+      if (o) out.push([m[1], o[1], ph ? ph[1].replace(/\\u0026/g, "&") : ""]);
     }
   }
 
@@ -112,6 +136,6 @@
   window.addEventListener("message", (e) => {
     if (e.source !== window || !e.data || e.data.type !== "vlf:rescan") return;
     scanInlineScripts();
-    if (known.size) window.postMessage({ type: MSG, pairs: [...known] }, location.origin);
+    if (known.size) window.postMessage({ type: MSG, pairs: [...known].map(([i, [u, p]]) => [i, u, p]) }, location.origin);
   });
 })();

@@ -23,6 +23,8 @@ Not affiliated with, endorsed by, or connected to Vinted.
 - **Other countries**: `Show (badge only)`, `Dim`, or `Hide` listings from sellers elsewhere.
 - **Also filter unknown**: treat sellers whose country couldn't be read as "other".
 - Hover a badge to see the seller's city (when they've made it public).
+- **View photos**: click the magnifier in the bottom-left corner of a listing's photo to see all
+  of its photos full size, without leaving the results. Use ← / → to step through them, and Esc to close.
 
 The same settings open in a popup when you click the extension's toolbar button (pin it from
 Chrome's puzzle-piece menu to keep it visible). On a Vinted search, the popup also shows how many
@@ -38,11 +40,12 @@ Vinted's search results don't include seller location, only the seller's user ID
   from the `svc-catalogue/items` responses Vinted loads for later pages. It only reads
   responses and never changes them.
 - `content.js` looks up each seller via `/api/v2/users/{id}` (`country_iso_code`), caches the
-  result for 14 days in `chrome.storage.local`, and badges/filters the grid.
+  result for 90 days in `chrome.storage.local`, and badges/filters the grid.
 
 ## Limits
-- Vinted rate-limits user lookups to about 30 every 30 seconds. On a fresh search, badges
-  fill in over a minute or two, with on-screen items first. Cached sellers show instantly.
+- Vinted rate-limits user lookups to about 30 every 30 seconds. On a fresh search, the listings
+  on screen get their badges within a few seconds; a full page of new sellers still takes a
+  minute or two. Cached sellers show instantly.
 - Hiding happens after Vinted has loaded a page, so a page of 96 results may shrink to a
   handful. Setting Vinted's own filters first (price, condition) helps.
 - It depends on Vinted's current page structure and internal endpoints, which can change
@@ -50,7 +53,7 @@ Vinted's search results don't include seller location, only the seller's user ID
 
 ## Privacy
 Runs only on Vinted sites, sends nothing to the developer or anyone else, and keeps seller
-countries in your browser for 14 days. See [PRIVACY.md](PRIVACY.md).
+countries in your browser for 90 days. See [PRIVACY.md](PRIVACY.md).
 
 ## Building and releasing
 - `scripts/build.sh` builds `dist/vinted-country-filter-<version>.zip` (the file to upload to the
