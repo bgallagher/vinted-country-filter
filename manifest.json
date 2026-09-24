@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Vinted Seller Location Filter",
+  "version": "0.1.0",
+  "description": "Shows each seller's country on Vinted listings and lets you hide or dim items shipped from other countries.",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.vinted.ie/*", "*://*.vinted.co.uk/*", "*://*.vinted.fr/*", "*://*.vinted.de/*",
+        "*://*.vinted.es/*", "*://*.vinted.it/*", "*://*.vinted.nl/*", "*://*.vinted.be/*",
+        "*://*.vinted.pl/*", "*://*.vinted.pt/*", "*://*.vinted.lt/*", "*://*.vinted.lv/*",
+        "*://*.vinted.ee/*", "*://*.vinted.cz/*", "*://*.vinted.sk/*", "*://*.vinted.at/*",
+        "*://*.vinted.lu/*", "*://*.vinted.se/*", "*://*.vinted.fi/*", "*://*.vinted.dk/*",
+        "*://*.vinted.gr/*", "*://*.vinted.hu/*", "*://*.vinted.ro/*", "*://*.vinted.hr/*",
+        "*://*.vinted.si/*", "*://*.vinted.com/*"
+      ],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://*.vinted.ie/*", "*://*.vinted.co.uk/*", "*://*.vinted.fr/*", "*://*.vinted.de/*",
+        "*://*.vinted.es/*", "*://*.vinted.it/*", "*://*.vinted.nl/*", "*://*.vinted.be/*",
+        "*://*.vinted.pl/*", "*://*.vinted.pt/*", "*://*.vinted.lt/*", "*://*.vinted.lv/*",
+        "*://*.vinted.ee/*", "*://*.vinted.cz/*", "*://*.vinted.sk/*", "*://*.vinted.at/*",
+        "*://*.vinted.lu/*", "*://*.vinted.se/*", "*://*.vinted.fi/*", "*://*.vinted.dk/*",
+        "*://*.vinted.gr/*", "*://*.vinted.hu/*", "*://*.vinted.ro/*", "*://*.vinted.hr/*",
+        "*://*.vinted.si/*", "*://*.vinted.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
