@@ -7,26 +7,17 @@
   const CONCURRENCY = 1;
   const GAP_MS = 900;
 
-  const TLD_COUNTRY = {
-    ie: "IE", "co.uk": "GB", fr: "FR", de: "DE", es: "ES", it: "IT", nl: "NL", be: "BE",
-    pl: "PL", pt: "PT", lt: "LT", lv: "LV", ee: "EE", cz: "CZ", sk: "SK", at: "AT",
-    lu: "LU", se: "SE", fi: "FI", dk: "DK", gr: "GR", hu: "HU", ro: "RO", hr: "HR", si: "SI",
-    com: "US",
-  };
-  const tld = location.hostname.replace(/^.*?vinted\./, "");
+  // VLF_* come from shared.js.
+  const siteCountry = VLF_TLD_COUNTRY[location.hostname.replace(/^.*?vinted\./, "")] || "IE";
 
   const itemOwner = new Map(); // itemId -> userId
   let users = {};              // userId -> { c: "IE", city: "Dublin", t: fetchedAt }
-  let settings = {
-    mode: "dim",               // "badge" | "dim" | "hide"
-    allowed: [TLD_COUNTRY[tld] || "IE"],
-    hideUnknown: false,
-    collapsed: false,
-  };
+  let settings = { ...VLF_DEFAULTS }; // mode: "badge" | "dim" | "hide"
+  const homeCountry = () => settings.country || siteCountry;
 
   // ---------- storage
   const ready = Promise.all([
-    chrome.storage.sync.get("settings").then((r) => { if (r.settings) settings = { ...settings, ...r.settings }; }),
+    chrome.storage.sync.get("settings").then((r) => { settings = vlfSettings(r.settings); }),
     chrome.storage.local.get("users").then((r) => {
       const now = Date.now();
       for (const [id, u] of Object.entries(r.users || {})) if (now - u.t < USER_TTL_MS) users[id] = u;
@@ -39,6 +30,14 @@
     saveTimer = setTimeout(() => chrome.storage.local.set({ users }), 1000);
   }
   function saveSettings() { chrome.storage.sync.set({ settings }); }
+
+  // Pick up changes made on the options page or in another tab.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "sync" || !changes.settings) return;
+    settings = vlfSettings(changes.settings.newValue);
+    syncPanelInputs();
+    schedule();
+  });
 
   // ---------- owner map from inject.js
   window.addEventListener("message", (e) => {
@@ -112,8 +111,6 @@
   }
 
   // ---------- DOM
-  const flag = (cc) => cc ? String.fromCodePoint(...[...cc.toUpperCase()].map((ch) => 0x1f1a5 + ch.charCodeAt(0))) : "";
-
   function cards() {
     const out = [];
     for (const el of document.querySelectorAll('[data-testid^="product-item-id-"]')) {
@@ -124,7 +121,7 @@
   }
 
   function apply() {
-    const allowed = new Set(settings.allowed.map((s) => s.toUpperCase()));
+    const home = homeCountry();
     let shown = 0, total = 0, pending = 0;
 
     const vh = window.innerHeight;
@@ -146,8 +143,8 @@
 
       let state, text, title; // state: "match" | "other" | "unknown"
       if (u && u.c) {
-        state = allowed.has(u.c) ? "match" : "other";
-        text = `${flag(u.c)} ${u.c}`;
+        state = u.c.toUpperCase() === home ? "match" : "other";
+        text = `${vlfFlag(u.c)} ${u.c}`;
         title = `Seller in ${[u.city, u.name].filter(Boolean).join(", ") || u.c}`;
       } else if (u) {
         state = "unknown";
@@ -190,8 +187,8 @@
       panel.innerHTML = `
         <div class="vlf-head"><strong>Seller location</strong><span class="vlf-stats"></span><button class="vlf-toggle" type="button"></button></div>
         <div class="vlf-body">
-          <label>Countries <input class="vlf-countries" type="text" placeholder="IE, GB" spellcheck="false"></label>
-          <label>Others
+          <label>My country <select class="vlf-country"></select></label>
+          <label>Other countries
             <select class="vlf-mode">
               <option value="badge">Show (badge only)</option>
               <option value="dim">Dim</option>
@@ -203,15 +200,10 @@
       document.body.appendChild(panel);
 
       const $ = (s) => panel.querySelector(s);
-      $(".vlf-countries").value = settings.allowed.join(", ");
-      $(".vlf-mode").value = settings.mode;
-      $(".vlf-unknown").checked = settings.hideUnknown;
+      vlfFillCountrySelect($(".vlf-country"), `This site (${vlfFlag(siteCountry)} ${vlfCountryName(siteCountry)})`);
+      syncPanelInputs();
 
-      $(".vlf-countries").addEventListener("change", (e) => {
-        settings.allowed = e.target.value.split(/[\s,;]+/).map((s) => s.trim().toUpperCase()).filter((s) => /^[A-Z]{2}$/.test(s));
-        e.target.value = settings.allowed.join(", ");
-        saveSettings(); schedule();
-      });
+      $(".vlf-country").addEventListener("change", (e) => { settings.country = e.target.value; saveSettings(); schedule(); });
       $(".vlf-mode").addEventListener("change", (e) => { settings.mode = e.target.value; saveSettings(); schedule(); });
       $(".vlf-unknown").addEventListener("change", (e) => { settings.hideUnknown = e.target.checked; saveSettings(); schedule(); });
       $(".vlf-toggle").addEventListener("click", () => { settings.collapsed = !settings.collapsed; saveSettings(); schedule(); });
@@ -220,6 +212,13 @@
     panel.querySelector(".vlf-toggle").textContent = settings.collapsed ? "▴" : "▾";
     panel.querySelector(".vlf-stats").textContent =
       `${shown}/${total}` + (pending ? ` · ${pending} loading` : "");
+  }
+
+  function syncPanelInputs() {
+    if (!panel) return;
+    panel.querySelector(".vlf-country").value = settings.country;
+    panel.querySelector(".vlf-mode").value = settings.mode;
+    panel.querySelector(".vlf-unknown").checked = settings.hideUnknown;
   }
 
   // ---------- boot

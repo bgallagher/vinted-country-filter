@@ -1,37 +1,102 @@
 {
   "manifest_version": 3,
   "name": "Vinted Seller Location Filter",
-  "version": "0.1.0",
-  "description": "Shows each seller's country on Vinted listings and lets you hide or dim items shipped from other countries.",
-  "permissions": ["storage"],
+  "version": "0.2.0",
+  "description": "Shows each seller's country on Vinted listings and lets you hide or dim items from sellers outside your country.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Seller location settings",
+    "default_popup": "options.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "permissions": [
+    "storage"
+  ],
   "content_scripts": [
     {
       "matches": [
-        "*://*.vinted.ie/*", "*://*.vinted.co.uk/*", "*://*.vinted.fr/*", "*://*.vinted.de/*",
-        "*://*.vinted.es/*", "*://*.vinted.it/*", "*://*.vinted.nl/*", "*://*.vinted.be/*",
-        "*://*.vinted.pl/*", "*://*.vinted.pt/*", "*://*.vinted.lt/*", "*://*.vinted.lv/*",
-        "*://*.vinted.ee/*", "*://*.vinted.cz/*", "*://*.vinted.sk/*", "*://*.vinted.at/*",
-        "*://*.vinted.lu/*", "*://*.vinted.se/*", "*://*.vinted.fi/*", "*://*.vinted.dk/*",
-        "*://*.vinted.gr/*", "*://*.vinted.hu/*", "*://*.vinted.ro/*", "*://*.vinted.hr/*",
-        "*://*.vinted.si/*", "*://*.vinted.com/*"
+        "*://*.vinted.ie/*",
+        "*://*.vinted.co.uk/*",
+        "*://*.vinted.fr/*",
+        "*://*.vinted.de/*",
+        "*://*.vinted.es/*",
+        "*://*.vinted.it/*",
+        "*://*.vinted.nl/*",
+        "*://*.vinted.be/*",
+        "*://*.vinted.pl/*",
+        "*://*.vinted.pt/*",
+        "*://*.vinted.lt/*",
+        "*://*.vinted.lv/*",
+        "*://*.vinted.ee/*",
+        "*://*.vinted.cz/*",
+        "*://*.vinted.sk/*",
+        "*://*.vinted.at/*",
+        "*://*.vinted.lu/*",
+        "*://*.vinted.se/*",
+        "*://*.vinted.fi/*",
+        "*://*.vinted.dk/*",
+        "*://*.vinted.gr/*",
+        "*://*.vinted.hu/*",
+        "*://*.vinted.ro/*",
+        "*://*.vinted.hr/*",
+        "*://*.vinted.si/*",
+        "*://*.vinted.com/*"
       ],
-      "js": ["inject.js"],
+      "js": [
+        "inject.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
       "matches": [
-        "*://*.vinted.ie/*", "*://*.vinted.co.uk/*", "*://*.vinted.fr/*", "*://*.vinted.de/*",
-        "*://*.vinted.es/*", "*://*.vinted.it/*", "*://*.vinted.nl/*", "*://*.vinted.be/*",
-        "*://*.vinted.pl/*", "*://*.vinted.pt/*", "*://*.vinted.lt/*", "*://*.vinted.lv/*",
-        "*://*.vinted.ee/*", "*://*.vinted.cz/*", "*://*.vinted.sk/*", "*://*.vinted.at/*",
-        "*://*.vinted.lu/*", "*://*.vinted.se/*", "*://*.vinted.fi/*", "*://*.vinted.dk/*",
-        "*://*.vinted.gr/*", "*://*.vinted.hu/*", "*://*.vinted.ro/*", "*://*.vinted.hr/*",
-        "*://*.vinted.si/*", "*://*.vinted.com/*"
+        "*://*.vinted.ie/*",
+        "*://*.vinted.co.uk/*",
+        "*://*.vinted.fr/*",
+        "*://*.vinted.de/*",
+        "*://*.vinted.es/*",
+        "*://*.vinted.it/*",
+        "*://*.vinted.nl/*",
+        "*://*.vinted.be/*",
+        "*://*.vinted.pl/*",
+        "*://*.vinted.pt/*",
+        "*://*.vinted.lt/*",
+        "*://*.vinted.lv/*",
+        "*://*.vinted.ee/*",
+        "*://*.vinted.cz/*",
+        "*://*.vinted.sk/*",
+        "*://*.vinted.at/*",
+        "*://*.vinted.lu/*",
+        "*://*.vinted.se/*",
+        "*://*.vinted.fi/*",
+        "*://*.vinted.dk/*",
+        "*://*.vinted.gr/*",
+        "*://*.vinted.hu/*",
+        "*://*.vinted.ro/*",
+        "*://*.vinted.hr/*",
+        "*://*.vinted.si/*",
+        "*://*.vinted.com/*"
       ],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "js": [
+        "shared.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  }
 }

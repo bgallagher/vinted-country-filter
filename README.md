@@ -1,19 +1,23 @@
 # Vinted Seller Location Filter
 
 Chrome/Edge/Brave extension that adds a country badge (e.g. `🇮🇪 IE`, `🇫🇷 FR`) to every
-Vinted listing and lets you dim or hide items from sellers outside the countries you choose.
+Vinted listing and lets you dim or hide items from sellers outside your country.
 
 ## Install (unpacked)
 1. Open `chrome://extensions`, turn on **Developer mode**.
 2. **Load unpacked** → select this folder.
-3. Open any Vinted search. A "Seller location" panel appears bottom-right.
+3. Open any Vinted search. A "Seller location" panel appears bottom-right; pick your country there.
 
 ## Using it
-- **Countries**: comma-separated ISO codes to keep, e.g. `IE` or `IE, GB`. Defaults to the
-  country of the Vinted domain you're on.
-- **Others**: `Show (badge only)`, `Dim`, or `Hide` listings from other countries.
+- **My country**: the country whose sellers you want to keep. Defaults to the country of the
+  Vinted site you're on (so `vinted.ie` → Ireland). Set it explicitly if you shop on another
+  country's site, e.g. you live in Ireland but browse `vinted.fr`.
+- **Other countries**: `Show (badge only)`, `Dim`, or `Hide` listings from sellers elsewhere.
 - **Also filter unknown**: treat sellers whose country couldn't be read as "other".
 - Hover a badge to see the seller's city (when they've made it public).
+
+The same settings open in a popup when you click the extension's toolbar button (pin it from
+Chrome's puzzle-piece menu to keep it visible). Changes apply to open Vinted tabs right away.
 
 ## How it works
 Vinted's search results don't include seller location, only the seller's user ID.
