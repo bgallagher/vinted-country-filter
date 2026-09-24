@@ -2,40 +2,164 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Vinted Seller Location Filter</title>
+  <title>Seller location</title>
   <style>
-    :root { color-scheme: light dark; }
-    /* Used both as the toolbar popup and as the options page. */
-    body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 14px 16px 16px; width: 300px; }
-    header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-    header img { width: 28px; height: 28px; }
-    header h1 { font-size: 16px; margin: 0; }
-    form { display: grid; gap: 14px; }
-    label { display: grid; gap: 4px; font-weight: 600; }
-    label.check { display: flex; align-items: center; gap: 8px; font-weight: normal; }
-    select { font: inherit; padding: 4px 6px; }
-    .hint { font-weight: normal; font-size: 12px; opacity: 0.7; }
-    #saved { font-size: 12px; opacity: 0; transition: opacity 0.2s; }
-    #saved.show { opacity: 0.7; }
+    /* Used both as the toolbar popup (300px) and as the options page inside
+       chrome://extensions (options.js adds .wide there). */
+    :root {
+      color-scheme: light dark;
+      --accent: #007782;
+      --on-accent: #ffffff;
+      --bg: #ffffff;
+      --subtle: #f4f5f5;
+      --border: #e2e4e4;
+      --border-strong: #c6cbcc;
+      --text: #171717;
+      --muted: #5f6566;
+      --focus: rgba(0, 119, 130, 0.32);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #4cb3bc;
+        --on-accent: #08292c;
+        --bg: #1a1c1d;
+        --subtle: #242728;
+        --border: #323738;
+        --border-strong: #4a5152;
+        --text: #ececec;
+        --muted: #a2a9aa;
+        --focus: rgba(76, 179, 188, 0.45);
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      width: 300px; margin: 0;
+      font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text); background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    body.wide { width: auto; max-width: 480px; }
+    .ico { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Header */
+    .head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .logo { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: #007782; }
+    .logo svg { width: 17px; height: 17px; }
+    .logo path { fill: #ffffff; }
+    .logo circle { fill: #007782; }
+    .title { flex: 1; margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -0.005em; }
+    .saved { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; color: var(--accent);
+      opacity: 0; transform: translateY(2px); transition: opacity 0.2s ease, transform 0.2s ease; }
+    .saved.is-visible { opacity: 1; transform: none; }
+    .saved svg { width: 14px; height: 14px; stroke-width: 2.4; }
+
+    .content { display: flex; flex-direction: column; gap: 18px; padding: 16px; }
+
+    /* "This page" stats card */
+    .stats { padding: 12px; border-radius: 8px; background: var(--subtle); }
+    .stats[data-state="empty"] .stats-ready,
+    .stats[data-state="ready"] .stats-empty { display: none; }
+    .stats-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .stats-num { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    .stats-of { font-weight: 500; color: var(--muted); }
+    .stats-cap { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+    .loading { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; margin-top: 1px;
+      border: 1px solid var(--border); border-radius: 999px; background: var(--bg);
+      font-size: 11.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+    .loading::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: vlf-pulse 1.2s ease-in-out infinite; }
+    .loading[hidden] { display: none; }
+    .stats-empty { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; color: var(--muted); }
+    .stats-empty svg { flex: none; width: 18px; height: 18px; }
+
+    /* Fields */
+    .field { min-width: 0; margin: 0; padding: 0; border: 0; }
+    .label { display: block; margin: 0 0 6px; padding: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+    .hint { margin: 6px 0 0; font-size: 12px; line-height: 1.35; color: var(--muted); }
+
+    .select { position: relative; }
+    .select::after { content: ""; position: absolute; top: 50%; right: 14px; width: 7px; height: 7px; margin-top: -5px;
+      border-right: 1.75px solid var(--muted); border-bottom: 1.75px solid var(--muted); transform: rotate(45deg); pointer-events: none; }
+    .select select { appearance: none; width: 100%; height: 38px; padding: 0 34px 0 12px; font: inherit; font-size: 14px;
+      color: var(--text); background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px;
+      cursor: pointer; text-overflow: ellipsis; }
+    .select select:hover { border-color: var(--muted); }
+    .select select:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus); }
+
+    /* Segmented control (radio name="mode") */
+    .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px;
+      background: var(--subtle); border: 1px solid var(--border); border-radius: 999px; }
+    .seg input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+    .seg label { display: flex; align-items: center; justify-content: center; height: 30px; border-radius: 999px;
+      font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; user-select: none;
+      transition: background 0.15s ease, color 0.15s ease; }
+    .seg label:hover { color: var(--text); }
+    .seg input:checked + label { background: var(--accent); color: var(--on-accent); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14); }
+    .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .mode-hint { display: none; }
+    #mode:has(input[value="badge"]:checked) .mode-hint[data-mode="badge"],
+    #mode:has(input[value="dim"]:checked) .mode-hint[data-mode="dim"],
+    #mode:has(input[value="hide"]:checked) .mode-hint[data-mode="hide"] { display: block; }
+
+    /* Switch row */
+    .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding-top: 14px; border-top: 1px solid var(--border); }
+    .switch-row label { font-size: 13px; line-height: 1.35; cursor: pointer; }
+    .switch { appearance: none; flex: none; position: relative; width: 36px; height: 20px; margin: 0;
+      border-radius: 999px; background: var(--border-strong); cursor: pointer; transition: background 0.15s ease; }
+    .switch::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+      background: #ffffff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: transform 0.15s ease; }
+    .switch:checked { background: var(--accent); }
+    .switch:checked::before { transform: translateX(16px); }
+    .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    :disabled, :disabled + label { cursor: default; }
+
+    @keyframes vlf-pulse { 50% { opacity: 0.35; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; animation: none !important; } }
   </style>
 </head>
 <body>
-  <header><img src="icons/icon48.png" alt=""><h1>Seller location</h1></header>
-  <form>
-    <label>My country
-      <select id="country" disabled></select>
-      <span class="hint">Listings from sellers in this country are kept. Everything else counts as "other".</span>
-    </label>
-    <label>Listings from other countries
-      <select id="mode" disabled>
-        <option value="badge">Show (badge only)</option>
-        <option value="dim">Dim</option>
-        <option value="hide">Hide</option>
-      </select>
-    </label>
-    <label class="check"><input id="hideUnknown" type="checkbox" disabled> Also filter sellers whose country is unknown</label>
-    <span id="saved">Saved</span>
-  </form>
+  <header class="head">
+    <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s-7-6.1-7-12a7 7 0 0 1 14 0c0 5.9-7 12-7 12z"></path><circle cx="12" cy="10" r="2.6"></circle></svg></span>
+    <h1 class="title">Seller location</h1>
+    <span id="saved" class="saved" role="status" aria-live="polite"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="5 12.5 10 17 19 7.5"></polyline></svg>Saved</span>
+  </header>
+  <div class="content">
+    <section id="stats" class="stats" data-state="empty" aria-label="This page">
+      <div class="stats-ready">
+        <div class="stats-row">
+          <div>
+            <p class="stats-num"><span id="statsShown">0</span> <span class="stats-of">of <span id="statsTotal">0</span></span></p>
+            <p class="stats-cap">listings shown on this page</p>
+          </div>
+          <span class="loading" id="statsLoading" hidden></span>
+        </div>
+      </div>
+      <p class="stats-empty"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><line x1="16" y1="16" x2="20.5" y2="20.5"></line></svg><span>Open a Vinted search to see results</span></p>
+    </section>
+
+    <div class="field">
+      <label class="label" for="country">My country</label>
+      <div class="select"><select id="country" disabled></select></div>
+      <p class="hint">Listings from sellers in this country are kept.</p>
+    </div>
+
+    <fieldset class="field" id="mode">
+      <legend class="label">Listings from other countries</legend>
+      <div class="seg">
+        <input type="radio" name="mode" id="mode-badge" value="badge" disabled><label for="mode-badge">Show</label>
+        <input type="radio" name="mode" id="mode-dim" value="dim" disabled><label for="mode-dim">Dim</label>
+        <input type="radio" name="mode" id="mode-hide" value="hide" disabled><label for="mode-hide">Hide</label>
+      </div>
+      <p class="hint mode-hint" data-mode="badge">They stay in place with a country badge.</p>
+      <p class="hint mode-hint" data-mode="dim">They're faded so home listings stand out.</p>
+      <p class="hint mode-hint" data-mode="hide">They're removed from the results.</p>
+    </fieldset>
+
+    <div class="switch-row">
+      <label for="hideUnknown">Also filter sellers whose country is unknown</label>
+      <input type="checkbox" id="hideUnknown" class="switch" role="switch" disabled>
+    </div>
+  </div>
   <script src="shared.js"></script>
   <script src="options.js"></script>
 </body>

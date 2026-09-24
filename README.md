@@ -17,7 +17,12 @@ Vinted listing and lets you dim or hide items from sellers outside your country.
 - Hover a badge to see the seller's city (when they've made it public).
 
 The same settings open in a popup when you click the extension's toolbar button (pin it from
-Chrome's puzzle-piece menu to keep it visible). Changes apply to open Vinted tabs right away.
+Chrome's puzzle-piece menu to keep it visible). On a Vinted search, the popup also shows how many
+listings on the page are shown and how many are still loading. Changes apply to open Vinted tabs
+right away.
+
+Badges: teal = your country, amber = another country, pulsing `…` = still looking up the seller,
+`? –` = the seller's country isn't available.
 
 ## How it works
 Vinted's search results don't include seller location, only the seller's user ID.

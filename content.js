@@ -141,7 +141,8 @@
         (box.querySelector('[class*="image-container"]') || box).appendChild(badge);
       }
 
-      let state, text, title; // state: "match" | "other" | "unknown"
+      // state: "match" | "other" | "loading" (lookup queued; pulses) | "unknown"
+      let state, text, title;
       if (u && u.c) {
         state = u.c.toUpperCase() === home ? "match" : "other";
         text = `${vlfFlag(u.c)} ${u.c}`;
@@ -151,7 +152,7 @@
         text = "? –";
         title = "Seller country not available";
       } else {
-        state = "unknown";
+        state = uid ? "loading" : "unknown";
         pending++;
         text = "…";
         title = uid ? "Looking up seller…" : "Seller not known yet";
@@ -163,13 +164,20 @@
       if (badge.dataset.state !== state) badge.dataset.state = state;
 
       const reject = settings.mode !== "badge" &&
-        (state === "other" || (state === "unknown" && settings.hideUnknown && !(uid && !u)));
+        (state === "other" || (state === "unknown" && settings.hideUnknown));
       cell.classList.toggle("vlf-hidden", reject && settings.mode === "hide");
       cell.classList.toggle("vlf-dimmed", reject && settings.mode === "dim");
       if (!(reject && settings.mode === "hide")) shown++;
     }
-    renderPanel(shown, total, pending);
+    stats = { shown, total, pending };
+    renderPanel();
   }
+
+  // Counts for the toolbar popup's "this page" card.
+  let stats = { shown: 0, total: 0, pending: 0 };
+  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+    if (msg && msg.type === "vlf:stats") reply(stats);
+  });
 
   let raf = 0;
   function schedule() {
@@ -179,46 +187,73 @@
 
   // ---------- panel
   let panel;
-  function renderPanel(shown, total, pending) {
-    if (!total && !panel) return;
+  const PIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s-7-6.1-7-12a7 7 0 0 1 14 0c0 5.9-7 12-7 12z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>';
+  const MODES = [["badge", "Show"], ["dim", "Dim"], ["hide", "Hide"]];
+
+  function renderPanel() {
+    if (!stats.total && !panel) return;
     if (!panel) {
-      panel = document.createElement("div");
+      panel = document.createElement("aside");
       panel.className = "vlf-panel";
+      panel.setAttribute("aria-label", "Seller location filter");
       panel.innerHTML = `
-        <div class="vlf-head"><strong>Seller location</strong><span class="vlf-stats"></span><button class="vlf-toggle" type="button"></button></div>
+        <div class="vlf-head">
+          <span class="vlf-logo" aria-hidden="true">${PIN_SVG}</span>
+          <div class="vlf-titles"><span class="vlf-title">Seller location</span><span class="vlf-stats"></span></div>
+          <span class="vlf-saved" role="status" aria-live="polite">Saved</span>
+          <button type="button" class="vlf-toggle"><svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+        </div>
         <div class="vlf-body">
-          <label>My country <select class="vlf-country"></select></label>
-          <label>Other countries
-            <select class="vlf-mode">
-              <option value="badge">Show (badge only)</option>
-              <option value="dim">Dim</option>
-              <option value="hide">Hide</option>
-            </select>
-          </label>
-          <label class="vlf-check"><input class="vlf-unknown" type="checkbox"> Also filter unknown</label>
+          <div class="vlf-field">
+            <label class="vlf-label" for="vlf-country">My country</label>
+            <div class="vlf-select"><select class="vlf-country" id="vlf-country"></select></div>
+            <p class="vlf-hint">Listings from sellers in this country are kept.</p>
+          </div>
+          <div class="vlf-field">
+            <span class="vlf-label" id="vlf-mode-label">Listings from other countries</span>
+            <div class="vlf-mode vlf-seg" role="radiogroup" aria-labelledby="vlf-mode-label">
+              ${MODES.map(([v, label]) => `<input type="radio" name="vlf-mode" id="vlf-mode-${v}" value="${v}"><label for="vlf-mode-${v}">${label}</label>`).join("")}
+            </div>
+          </div>
+          <div class="vlf-switch-row">
+            <label for="vlf-unknown">Also filter unknown sellers</label>
+            <input type="checkbox" class="vlf-unknown vlf-switch" id="vlf-unknown" role="switch">
+          </div>
         </div>`;
-      document.body.appendChild(panel);
 
       const $ = (s) => panel.querySelector(s);
       vlfFillCountrySelect($(".vlf-country"), `This site (${vlfFlag(siteCountry)} ${vlfCountryName(siteCountry)})`);
       syncPanelInputs();
 
-      $(".vlf-country").addEventListener("change", (e) => { settings.country = e.target.value; saveSettings(); schedule(); });
-      $(".vlf-mode").addEventListener("change", (e) => { settings.mode = e.target.value; saveSettings(); schedule(); });
-      $(".vlf-unknown").addEventListener("change", (e) => { settings.hideUnknown = e.target.checked; saveSettings(); schedule(); });
+      const change = (patch) => { Object.assign(settings, patch); saveSettings(); flashSaved(); schedule(); };
+      $(".vlf-country").addEventListener("change", (e) => change({ country: e.target.value }));
+      $(".vlf-mode").addEventListener("change", (e) => change({ mode: e.target.value }));
+      $(".vlf-unknown").addEventListener("change", (e) => change({ hideUnknown: e.target.checked }));
       $(".vlf-toggle").addEventListener("click", () => { settings.collapsed = !settings.collapsed; saveSettings(); schedule(); });
     }
+    // Vinted's React hydration can re-render <body> and drop the panel; put it back.
+    if (!panel.isConnected) document.body.appendChild(panel);
+    const toggle = panel.querySelector(".vlf-toggle");
     panel.classList.toggle("vlf-collapsed", settings.collapsed);
-    panel.querySelector(".vlf-toggle").textContent = settings.collapsed ? "▴" : "▾";
+    toggle.setAttribute("aria-expanded", String(!settings.collapsed));
+    toggle.setAttribute("aria-label", settings.collapsed ? "Expand panel" : "Collapse panel");
     panel.querySelector(".vlf-stats").textContent =
-      `${shown}/${total}` + (pending ? ` · ${pending} loading` : "");
+      `${stats.shown}/${stats.total}` + (stats.pending ? ` · ${stats.pending} loading` : "");
   }
 
   function syncPanelInputs() {
     if (!panel) return;
     panel.querySelector(".vlf-country").value = settings.country;
-    panel.querySelector(".vlf-mode").value = settings.mode;
+    for (const r of panel.querySelectorAll(".vlf-mode input")) r.checked = r.value === settings.mode;
     panel.querySelector(".vlf-unknown").checked = settings.hideUnknown;
+  }
+
+  let savedT = 0;
+  function flashSaved() {
+    const el = panel.querySelector(".vlf-saved");
+    el.classList.add("vlf-visible");
+    clearTimeout(savedT);
+    savedT = setTimeout(() => el.classList.remove("vlf-visible"), 1600);
   }
 
   // ---------- boot
@@ -227,10 +262,13 @@
     const ours = (n) => n.nodeType !== 1 || n.classList.contains("vlf-badge") || (panel && panel.contains(n));
     new MutationObserver((muts) => {
       const external = muts.some((m) =>
-        !(ours(m.target) || (m.target.parentElement && ours(m.target.parentElement))) &&
-        ![...m.addedNodes, ...m.removedNodes].every(ours));
+        // We never remove elements, so a removed one (even our panel or a
+        // badge, e.g. during React hydration) always means a page change.
+        [...m.removedNodes].some((n) => n.nodeType === 1) ||
+        (!(ours(m.target) || (m.target.parentElement && ours(m.target.parentElement))) &&
+          ![...m.addedNodes].every(ours)));
       if (external) schedule();
-    }).observe(document.body, { childList: true, subtree: true });
+    }).observe(document.documentElement, { childList: true, subtree: true }); // not body: it can be replaced
     let scrollT = 0;
     window.addEventListener("scroll", () => { clearTimeout(scrollT); scrollT = setTimeout(schedule, 250); }, { passive: true });
     schedule();

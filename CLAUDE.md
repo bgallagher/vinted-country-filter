@@ -24,7 +24,9 @@ There are two content scripts, and they run in different JS worlds (see `manifes
 - **`shared.js`**: loaded just before `content.js` in the same content-script entry (so its top-level `VLF_*` / `vlf*` names are globals there), and by `options.html`. It holds the domain → country map, which is also the country picker's list, and the settings defaults.
 - **`options.html` / `options.js`**: the settings UI, used both as the toolbar popup (`action.default_popup`) and as the options page. Keep it popup-sized (300px wide). It edits the same settings as the in-page panel. Both sides listen to `chrome.storage.onChanged`, so a change in one shows up in the other and in every open tab.
 
-They communicate only through `window.postMessage` on `location.origin`:
+The popup gets the in-page counts for its "this page" card by sending `{type: "vlf:stats"}` with `chrome.tabs.sendMessage` to the active tab, about once a second while open. `content.js` replies with `{shown, total, pending}` from its last `apply()`. No reply (not a Vinted tab) means the empty state.
+
+`inject.js` and `content.js` communicate only through `window.postMessage` on `location.origin`:
 - `vlf:owners` `{pairs: [[itemId, userId], ...]}`: inject → content.
 - `vlf:rescan`: content → inject, sent after content.js loads. inject.js replies with every pair it already knows, because its first posts happen before content.js exists.
 
@@ -45,6 +47,8 @@ Search results never include the seller's location, only their user ID.
 
 - Cards are found with `[data-testid^="product-item-id-"]`, and the grid cell with `closest('[data-testid="grid-item"]')`. The badge goes inside `[class*="image-container"]`.
 - `apply()` runs from `requestAnimationFrame` (`schedule()`), triggered by a MutationObserver, scroll, and new data. It only writes to the DOM when a value has changed, and the observer ignores the extension's own nodes, so its writes don't retrigger it.
-- All CSS classes and message types use the `vlf` prefix.
+- Badge `data-state`: `match`, `other`, `loading` (lookup queued; pulses) or `unknown`. "Filter unknown" applies to `unknown` only, never to `loading`.
+- All CSS classes and message types use the `vlf` prefix. `content.css` resets common properties inside `.vlf-panel`, so panel rules that set margins need the `.vlf-panel` prefix to win.
+- The popup and panel follow the design canvas at https://claude.ai/artifact/1acQYEuLV1zsYxG2XtpJCN. Dark mode follows the OS (`prefers-color-scheme`).
 
 Vinted's markup, its inline data format and its internal endpoints can change without notice. When something breaks, check those first.
