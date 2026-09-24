@@ -4,7 +4,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const modeInputs = [...document.querySelectorAll('input[name="mode"]')];
-  const controls = [$("country"), $("hideUnknown"), ...modeInputs];
+  const controls = [$("enabled"), $("country"), $("hideUnknown"), ...modeInputs];
   let settings = { ...VLF_DEFAULTS };
 
   // Inside chrome://extensions this page is the options dialog, which is wider.
@@ -14,6 +14,8 @@
   vlfFillCountrySelect($("country"), "Same as the Vinted site I'm on");
 
   function show() {
+    $("enabled").checked = settings.enabled;
+    document.body.classList.toggle("is-off", !settings.enabled);
     $("country").value = settings.country;
     for (const r of modeInputs) r.checked = r.value === settings.mode;
     $("hideUnknown").checked = settings.hideUnknown;
@@ -35,11 +37,13 @@
     settings = vlfSettings(r.settings);
     show();
     for (const c of controls) c.disabled = false;
+    refreshStats(); // first refresh waits for settings, so "off" shows straight away
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "sync" && changes.settings) { settings = vlfSettings(changes.settings.newValue); show(); }
+    if (area === "sync" && changes.settings) { settings = vlfSettings(changes.settings.newValue); show(); refreshStats(); }
   });
 
+  $("enabled").addEventListener("change", (e) => { save({ enabled: e.target.checked }); show(); refreshStats(); });
   $("country").addEventListener("change", (e) => save({ country: e.target.value }));
   for (const r of modeInputs) r.addEventListener("change", (e) => save({ mode: e.target.value }));
   $("hideUnknown").addEventListener("change", (e) => save({ hideUnknown: e.target.checked }));
@@ -48,11 +52,14 @@
   // failure (not a Vinted tab, or opened before the extension loaded) shows
   // the empty state.
   async function refreshStats() {
+    if (!settings.enabled) { $("stats").dataset.state = "off"; return; }
     let stats = null;
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab) stats = await chrome.tabs.sendMessage(tab.id, { type: "vlf:stats" });
     } catch (_) { /* no content script there */ }
+    // The filter may have been switched off while we waited for the tab.
+    if (!settings.enabled) { $("stats").dataset.state = "off"; return; }
     const ready = !!(stats && stats.total);
     $("stats").dataset.state = ready ? "ready" : "empty";
     if (!ready) return;
@@ -61,6 +68,5 @@
     $("statsLoading").hidden = !stats.pending;
     $("statsLoading").textContent = `${stats.pending} still loading`;
   }
-  refreshStats();
   if (isPopup) setInterval(refreshStats, 1000); // counts change as lookups finish
 })();

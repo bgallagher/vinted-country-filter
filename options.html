@@ -57,8 +57,9 @@
 
     /* "This page" stats card */
     .stats { padding: 12px; border-radius: 8px; background: var(--subtle); }
-    .stats[data-state="empty"] .stats-ready,
-    .stats[data-state="ready"] .stats-empty { display: none; }
+    .stats:not([data-state="ready"]) .stats-ready,
+    .stats:not([data-state="empty"]) .stats-empty,
+    .stats:not([data-state="off"]) .stats-off { display: none; }
     .stats-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
     .stats-num { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
     .stats-of { font-weight: 500; color: var(--muted); }
@@ -68,8 +69,12 @@
       font-size: 11.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
     .loading::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: vlf-pulse 1.2s ease-in-out infinite; }
     .loading[hidden] { display: none; }
-    .stats-empty { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; color: var(--muted); }
-    .stats-empty svg { flex: none; width: 18px; height: 18px; }
+    .stats-empty, .stats-off { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; color: var(--muted); }
+    .stats-empty svg, .stats-off svg { flex: none; width: 18px; height: 18px; }
+    /* Filter switched off: grey logo, muted settings (still editable). */
+    body.is-off .logo { background: var(--border-strong); }
+    body.is-off .logo circle { fill: var(--border-strong); }
+    body.is-off .field, body.is-off .switch-row { opacity: 0.55; }
 
     /* Fields */
     .field { min-width: 0; margin: 0; padding: 0; border: 0; }
@@ -122,6 +127,7 @@
     <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s-7-6.1-7-12a7 7 0 0 1 14 0c0 5.9-7 12-7 12z"></path><circle cx="12" cy="10" r="2.6"></circle></svg></span>
     <h1 class="title">Seller location</h1>
     <span id="saved" class="saved" role="status" aria-live="polite"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="5 12.5 10 17 19 7.5"></polyline></svg>Saved</span>
+    <input type="checkbox" id="enabled" class="switch" role="switch" aria-label="Seller location filter on" disabled>
   </header>
   <div class="content">
     <section id="stats" class="stats" data-state="empty" aria-label="This page">
@@ -135,6 +141,7 @@
         </div>
       </div>
       <p class="stats-empty"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><line x1="16" y1="16" x2="20.5" y2="20.5"></line></svg><span>Open a Vinted search to see results</span></p>
+      <p class="stats-off"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"></path><path d="M6.3 6.3a8 8 0 1 0 11.4 0"></path></svg><span>Filter is off. Sellers aren't being checked.</span></p>
     </section>
 
     <div class="field">

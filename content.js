@@ -89,7 +89,7 @@
 
   // Every start goes through here, so the gap holds no matter who calls it.
   function pump() {
-    if (active >= CONCURRENCY || !queue.length) return;
+    if (!settings.enabled || active >= CONCURRENCY || !queue.length) return;
     const wait = Math.max(pausedUntil, nextAt) - Date.now();
     if (wait > 0) {
       if (!timer) timer = setTimeout(() => { timer = 0; pump(); }, wait);
@@ -137,6 +137,8 @@
   }
 
   function apply() {
+    if (!settings.enabled) return applyOff();
+    pump(); // resume lookups that were queued before the filter was switched off
     const home = homeCountry();
     let shown = 0, total = 0, pending = 0;
 
@@ -189,6 +191,17 @@
     renderPanel();
   }
 
+  // Filter switched off: remove badges and dim/hide classes, and count every
+  // listing as shown. Removing badges retriggers the observer once; the next
+  // pass finds nothing left to remove.
+  function applyOff() {
+    for (const el of document.querySelectorAll(".vlf-badge")) el.remove();
+    for (const el of document.querySelectorAll(".vlf-hidden, .vlf-dimmed")) el.classList.remove("vlf-hidden", "vlf-dimmed");
+    const total = cards().length;
+    stats = { shown: total, total, pending: 0 };
+    renderPanel();
+  }
+
   // Counts for the toolbar popup's "this page" card.
   let stats = { shown: 0, total: 0, pending: 0 };
   chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
@@ -215,8 +228,8 @@
       panel.innerHTML = `
         <div class="vlf-head">
           <span class="vlf-logo" aria-hidden="true">${PIN_SVG}</span>
-          <div class="vlf-titles"><span class="vlf-title">Seller location</span><span class="vlf-stats"></span></div>
-          <span class="vlf-saved" role="status" aria-live="polite">Saved</span>
+          <div class="vlf-titles"><span class="vlf-title">Seller location</span><span class="vlf-stats" role="status" aria-live="polite"></span></div>
+          <input type="checkbox" class="vlf-switch vlf-enabled" role="switch" aria-label="Seller location filter on">
           <button type="button" class="vlf-toggle"><svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
         </div>
         <div class="vlf-body">
@@ -245,6 +258,7 @@
       $(".vlf-country").addEventListener("change", (e) => change({ country: e.target.value }));
       $(".vlf-mode").addEventListener("change", (e) => change({ mode: e.target.value }));
       $(".vlf-unknown").addEventListener("change", (e) => change({ hideUnknown: e.target.checked }));
+      $(".vlf-enabled").addEventListener("change", (e) => change({ enabled: e.target.checked }));
       $(".vlf-toggle").addEventListener("click", () => { settings.collapsed = !settings.collapsed; saveSettings(); schedule(); });
     }
     // Vinted's React hydration can re-render <body> and drop the panel; put it back.
@@ -253,7 +267,11 @@
     panel.classList.toggle("vlf-collapsed", settings.collapsed);
     toggle.setAttribute("aria-expanded", String(!settings.collapsed));
     toggle.setAttribute("aria-label", settings.collapsed ? "Expand panel" : "Collapse panel");
-    panel.querySelector(".vlf-stats").textContent =
+    panel.classList.toggle("vlf-off", !settings.enabled);
+    const flashing = Date.now() < savedUntil;
+    const statsEl = panel.querySelector(".vlf-stats");
+    statsEl.classList.toggle("vlf-flash", flashing);
+    statsEl.textContent = flashing ? "Saved" : !settings.enabled ? "Off" :
       `${stats.shown}/${stats.total}` + (stats.pending ? ` · ${stats.pending} loading` : "");
   }
 
@@ -262,14 +280,16 @@
     panel.querySelector(".vlf-country").value = settings.country;
     for (const r of panel.querySelectorAll(".vlf-mode input")) r.checked = r.value === settings.mode;
     panel.querySelector(".vlf-unknown").checked = settings.hideUnknown;
+    panel.querySelector(".vlf-enabled").checked = settings.enabled;
   }
 
+  // "Saved" shows in place of the stats line for a moment after a change.
+  let savedUntil = 0;
   let savedT = 0;
   function flashSaved() {
-    const el = panel.querySelector(".vlf-saved");
-    el.classList.add("vlf-visible");
+    savedUntil = Date.now() + 1600;
     clearTimeout(savedT);
-    savedT = setTimeout(() => el.classList.remove("vlf-visible"), 1600);
+    savedT = setTimeout(schedule, 1650);
   }
 
   // ---------- boot
@@ -278,8 +298,9 @@
     const ours = (n) => n.nodeType !== 1 || n.classList.contains("vlf-badge") || (panel && panel.contains(n));
     observer = new MutationObserver((muts) => {
       const external = muts.some((m) =>
-        // We never remove elements, so a removed one (even our panel or a
-        // badge, e.g. during React hydration) always means a page change.
+        // A removed element (even our panel or a badge, e.g. during React
+        // hydration) means a page change. The one exception, applyOff()
+        // removing badges, just costs one extra pass.
         [...m.removedNodes].some((n) => n.nodeType === 1) ||
         (!(ours(m.target) || (m.target.parentElement && ours(m.target.parentElement))) &&
           ![...m.addedNodes].every(ours)));

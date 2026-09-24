@@ -9,6 +9,9 @@ Vinted listing and lets you dim or hide items from sellers outside your country.
 3. Open any Vinted search. A "Seller location" panel appears bottom-right; pick your country there.
 
 ## Using it
+- **On/off switch** (in the panel header and the popup): turn the filter off to stop checking
+  sellers and remove all badges and dimming. Turn it back on and everything returns, with sellers
+  already looked up restored instantly from the cache.
 - **My country**: the country whose sellers you want to keep. Defaults to the country of the
   Vinted site you're on (so `vinted.ie` → Ireland). Set it explicitly if you shop on another
   country's site, e.g. you live in Ireland but browse `vinted.fr`.

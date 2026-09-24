@@ -12,7 +12,7 @@ const VLF_COUNTRIES = [...new Set(Object.values(VLF_TLD_COUNTRY))];
 
 // Stored in chrome.storage.sync under "settings".
 // country: ISO code, or "" to use the country of the Vinted site being viewed.
-const VLF_DEFAULTS = { country: "", mode: "dim", hideUnknown: false, collapsed: false };
+const VLF_DEFAULTS = { enabled: true, country: "", mode: "dim", hideUnknown: false, collapsed: false };
 
 // Stored settings -> complete settings object. Always read settings through this.
 function vlfSettings(stored) {
