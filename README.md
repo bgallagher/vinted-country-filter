@@ -3,10 +3,15 @@
 Chrome/Edge/Brave extension that adds a country badge (e.g. `🇮🇪 IE`, `🇫🇷 FR`) to every
 Vinted listing and lets you dim or hide items from sellers outside your country.
 
+Not affiliated with, endorsed by, or connected to Vinted.
+
 ## Install (unpacked)
-1. Open `chrome://extensions`, turn on **Developer mode**.
-2. **Load unpacked** → select this folder.
-3. Open any Vinted search. A "Seller location" panel appears bottom-right; pick your country there.
+1. Download the latest `vinted-country-filter-<version>.zip` from
+   [Releases](https://github.com/bgallagher/vinted-country-filter/releases) and unzip it, or clone
+   this repo.
+2. Open `chrome://extensions`, turn on **Developer mode**.
+3. **Load unpacked** → select the unzipped folder (or the repo folder).
+4. Open any Vinted search. A "Seller location" panel appears bottom-right; pick your country there.
 
 ## Using it
 - **On/off switch** (in the panel header and the popup): turn the filter off to stop checking
@@ -42,3 +47,14 @@ Vinted's search results don't include seller location, only the seller's user ID
   handful. Setting Vinted's own filters first (price, condition) helps.
 - It depends on Vinted's current page structure and internal endpoints, which can change
   without notice.
+
+## Privacy
+Runs only on Vinted sites, sends nothing to the developer or anyone else, and keeps seller
+countries in your browser for 14 days. See [PRIVACY.md](PRIVACY.md).
+
+## Building and releasing
+- `scripts/build.sh` builds `dist/vinted-country-filter-<version>.zip` (the file to upload to the
+  Chrome Web Store) from committed files.
+- `scripts/release.sh <version>` checks the version and repo state, updates `manifest.json`, and
+  pushes a `v<version>` tag. GitHub Actions then builds the zip and publishes it as a release.
+  Use `--dry-run` to run only the checks.
