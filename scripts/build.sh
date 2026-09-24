@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 version=$(python3 -c 'import json; print(json.load(open("manifest.json"))["version"])')
 out="dist/vinted-country-filter-$version.zip"
 
-files=$(git ls-files | grep -vE '^(store/|scripts/|\.gitignore$|README\.md$|CLAUDE\.md$|PRIVACY\.md$)')
+files=$(git ls-files | grep -vE '^(\.github/|store/|scripts/|\.gitignore$|README\.md$|CLAUDE\.md$|PRIVACY\.md$)')
 
 python3 - "$files" <<'PY'
 import json, sys
