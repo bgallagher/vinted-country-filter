@@ -44,12 +44,14 @@
   // quietly and remove the panel (its controls could no longer save).
   let dead = false;
   let observer = null;
+  let pauseTicker = 0; // countdown for a 429 pause; see startPauseTicker()
   function alive() {
     if (dead) return false;
     if (chrome.runtime && chrome.runtime.id) return true;
     dead = true;
     if (observer) observer.disconnect();
     clearTimeout(saveTimer);
+    clearInterval(pauseTicker);
     if (panel) panel.remove();
     closeLightbox();
     return false;
@@ -186,6 +188,7 @@
         const retryAfter = Number(r.headers.get("retry-after")) * 1000 || 0;
         pausedUntil = now + Math.max(backoff, retryAfter);
         backoff = Math.min(backoff * 2, 120000);
+        startPauseTicker();
         // Learn which limit we hit from how many we'd just started: many in
         // the last 3s means the burst was too big; otherwise the 30s window
         // was. If neither count is high, the 429 was probably caused by
@@ -219,12 +222,53 @@
     queued.delete(userId);
   }
 
+  // Seconds left of a 429 pause, while lookups are waiting on it; else 0.
+  // The window/burst waits in pump() are normal pacing and don't count.
+  function pausedFor() {
+    if (!settings.enabled || !queue.length) return 0;
+    return Math.max(0, Math.ceil((pausedUntil - Date.now()) / 1000));
+  }
+
+  // Ticks the panel's countdown once a second during a 429 pause. Only the
+  // notice is redrawn each tick; one full pass runs when the pause ends.
+  function startPauseTicker() {
+    if (pauseTicker) return;
+    schedule();
+    pauseTicker = setInterval(() => {
+      if (!alive()) return;
+      if (pausedFor()) return renderNotice();
+      clearInterval(pauseTicker);
+      pauseTicker = 0;
+      schedule();
+    }, 1000);
+  }
+
   // ---------- DOM
+  // A listing card is the element whose data-testid prefixes its
+  // "<testid>--overlay-link" link to /items/<id>. That covers search and
+  // profile grids (product-item-id-N), the home feed (feed-item), promoted
+  // closets (item-N) and the listing page's rails (similar_items-N,
+  // other_user_items-N). The link sits in the card's image container, next to
+  // the badge and photo button.
+  const CARD_LINK = 'a[data-testid$="--overlay-link"][href*="/items/"]';
+  const itemIdOf = (link) => { const m = link && link.getAttribute("href").match(/\/items\/(\d+)/); return m ? m[1] : null; };
+
   function cards() {
     const out = [];
-    for (const el of document.querySelectorAll('[data-testid^="product-item-id-"]')) {
-      const m = el.dataset.testid.match(/^product-item-id-(\d+)$/);
-      if (m) out.push({ id: m[1], box: el, cell: el.closest('[data-testid="grid-item"]') || el });
+    const seen = new Set();
+    for (const link of document.querySelectorAll(CARD_LINK)) {
+      const id = itemIdOf(link);
+      const box = id && link.closest(`[data-testid="${CSS.escape(link.dataset.testid.slice(0, -"--overlay-link".length))}"]`);
+      if (!box || seen.has(box)) continue;
+      seen.add(box);
+      // A promoted closet is one seller's items, and its testid names the
+      // seller. Dim or hide the whole box, not its cards one by one.
+      const closet = box.closest('[data-testid^="closet-promotion-"]');
+      const m = closet && closet.dataset.testid.match(/^closet-promotion-(\d+)$/);
+      // Hide the card's wrapper when it has nothing else in it, so rails and
+      // grids don't keep an empty slot.
+      const wrap = box.parentElement && box.parentElement.childElementCount === 1 ? box.parentElement : box;
+      out.push({ id, box, cell: closet || box.closest('[data-testid="grid-item"]') || wrap, seller: m ? m[1] : null });
     }
     return out;
   }
@@ -241,9 +285,9 @@
     const vh = window.innerHeight;
     const ranked = new Map(); // userId -> { rank, row, left }, best card per seller
     const onPage = new Set(); // every uncached seller with a listing on the page
-    for (const { id, box, cell } of cards()) {
+    for (const { id, box, cell, seller } of cards()) {
       total++;
-      const uid = itemOwner.get(id);
+      const uid = itemOwner.get(id) || seller;
       const u = uid && users[uid];
       if (uid && !u) {
         want(uid);
@@ -314,7 +358,7 @@
   // Counts for the toolbar popup's "this page" card.
   let stats = { shown: 0, total: 0, pending: 0 };
   chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
-    if (msg && msg.type === "vlf:stats") reply(stats);
+    if (msg && msg.type === "vlf:stats") reply({ ...stats, paused: pausedFor() });
   });
 
   let raf = 0;
@@ -340,6 +384,10 @@
           <div class="vlf-titles"><span class="vlf-title">Seller location</span><span class="vlf-stats" role="status" aria-live="polite"></span></div>
           <input type="checkbox" class="vlf-switch vlf-enabled" role="switch" aria-label="Vinted Country Filter on">
           <button type="button" class="vlf-toggle"><svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+        </div>
+        <div class="vlf-notice" hidden>
+          <svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><polyline points="12 7.5 12 12 15 14"></polyline></svg>
+          <p><span role="status">Vinted is limiting lookups.</span> <span class="vlf-countdown"></span></p>
         </div>
         <div class="vlf-body">
           <div class="vlf-field">
@@ -381,7 +429,21 @@
     const statsEl = panel.querySelector(".vlf-stats");
     statsEl.classList.toggle("vlf-flash", flashing);
     statsEl.textContent = flashing ? "Saved" : !settings.enabled ? "Off" :
-      `${stats.shown}/${stats.total}` + (stats.pending ? ` · ${stats.pending} loading` : "");
+      `${stats.shown}/${stats.total}` + (pausedFor() ? " · paused" : stats.pending ? ` · ${stats.pending} loading` : "");
+    renderNotice();
+  }
+
+  // "Vinted is limiting lookups. Resuming in 37s." Only the first sentence is
+  // a live region, so screen readers hear it once, not every second.
+  function renderNotice() {
+    if (!panel) return;
+    const notice = panel.querySelector(".vlf-notice");
+    const secs = pausedFor();
+    if (secs) startPauseTicker(); // e.g. the filter was switched back on mid-pause
+    if (notice.hidden !== !secs) notice.hidden = !secs;
+    const text = secs ? `Resuming in ${secs}s` : "";
+    const count = notice.querySelector(".vlf-countdown");
+    if (count.textContent !== text) count.textContent = text;
   }
 
   function syncPanelInputs() {
@@ -474,9 +536,8 @@
     e.stopPropagation();
     // Read the listing from the card now: Vinted may reuse a card element for
     // another listing after the button was created.
-    const card = b.closest('[data-testid^="product-item-id-"]');
-    const m = card && card.dataset.testid.match(/^product-item-id-(\d+)$/);
-    openLightbox(m ? m[1] : b.dataset.item, b);
+    const link = b.parentElement && b.parentElement.querySelector(CARD_LINK);
+    openLightbox(itemIdOf(link) || b.dataset.item, b);
   }, true);
 
   // ---------- lightbox
@@ -485,11 +546,10 @@
   function openLightbox(id, opener) {
     if (!alive()) return;
     closeLightbox();
-    const box = opener.closest('[data-testid^="product-item-id-"]');
+    const box = opener.parentElement; // the card's image container
     const cardImg = box && box.querySelector("img");
     const first = itemPhoto.get(id) || (cardImg && (cardImg.currentSrc || cardImg.src)) || "";
-    const link = document.querySelector(`[data-testid="product-item-id-${id}--overlay-link"]`) ||
-      (box && box.querySelector('a[href*="/items/"]'));
+    const link = box && box.querySelector(CARD_LINK);
     const href = (link && link.href) || `/items/${id}`;
 
     const el = document.createElement("div");

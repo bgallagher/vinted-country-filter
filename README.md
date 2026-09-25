@@ -11,7 +11,7 @@ Not affiliated with, endorsed by, or connected to Vinted.
    this repo.
 2. Open `chrome://extensions`, turn on **Developer mode**.
 3. **Load unpacked** → select the unzipped folder (or the repo folder).
-4. Open any Vinted search. A "Seller location" panel appears bottom-right; pick your country there.
+4. Open any Vinted search or the home page. A "Seller location" panel appears bottom-right; pick your country there.
 
 ## Using it
 - **On/off switch** (in the panel header and the popup): turn the filter off to stop checking
@@ -35,10 +35,11 @@ Badges: teal = your country, amber = another country, pulsing `…` = still look
 `? –` = the seller's country isn't available.
 
 ## How it works
-Vinted's search results don't include seller location, only the seller's user ID.
-- `inject.js` (page context) reads item → seller IDs from the server-rendered first page and
-  from the `svc-catalogue/items` responses Vinted loads for later pages. It only reads
-  responses and never changes them.
+Vinted's listings don't include seller location, only the seller's user ID.
+- `inject.js` (page context) reads item → seller IDs from the server-rendered page and from
+  the responses Vinted loads later (search pages, the home feed, seller promotion boxes, a
+  listing's "Member's items" and "Similar items", profile wardrobes). It only reads responses
+  and never changes them.
 - `content.js` looks up each seller via `/api/v2/users/{id}` (`country_iso_code`), caches the
   result for 90 days in `chrome.storage.local`, and badges/filters the grid.
 

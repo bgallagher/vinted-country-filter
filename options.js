@@ -65,7 +65,10 @@
     if (!ready) return;
     $("statsShown").textContent = stats.shown;
     $("statsTotal").textContent = stats.total;
-    $("statsLoading").hidden = !stats.pending;
+    const paused = stats.paused || 0;
+    $("statsPaused").hidden = !paused;
+    $("statsPausedFor").textContent = paused ? `Resuming in ${paused}s` : "";
+    $("statsLoading").hidden = !stats.pending || !!paused;
     $("statsLoading").textContent = `${stats.pending} still loading`;
   }
   if (isPopup) setInterval(refreshStats, 1000); // counts change as lookups finish

@@ -28,7 +28,7 @@ See each seller's country on Vinted and dim or hide listings from other countrie
 Don't list Vinted domains (vinted.ie, vinted.fr, …) in the description. The first submission was rejected for "keyword spam" over exactly that.
 
 ```
-Avoid expensive international shipping on Vinted. This extension adds a flag badge showing each seller's country to every listing in your search results.
+Avoid expensive international shipping on Vinted. This extension adds a flag badge showing each seller's country to the listings you browse: search results, the home feed, seller promotions and a listing's similar items.
 
 • Teal badge: the seller is in your country. Amber badge: they're somewhere else.
 • Show, dim or hide listings from other countries.
@@ -36,7 +36,7 @@ Avoid expensive international shipping on Vinted. This extension adds a flag bad
 • Your country defaults to the Vinted site you're on, or pick it yourself.
 • Settings are in a small on-page panel and the toolbar button, with an on/off switch.
 
-On a new search, badges on screen appear within seconds. The rest of the page takes a minute or two, because Vinted limits how fast seller details can be requested.
+On a new search, badges on screen appear within seconds. The rest of the page takes a minute or two, because Vinted limits how fast seller details can be requested. If Vinted asks it to slow down, the panel shows a countdown until it resumes.
 
 Runs only on Vinted. Sends no data anywhere, and has no tracking or ads.
 
@@ -71,7 +71,7 @@ English
 ### Single purpose description
 
 ```
-Improves browsing Vinted search results: shows each seller's country, dims or hides listings from sellers outside a country the user chooses, and previews a listing's photos without leaving the results.
+Improves browsing Vinted listings: shows each seller's country, dims or hides listings from sellers outside a country the user chooses, and previews a listing's photos without leaving the results.
 ```
 
 (Updated for 0.6.0, which adds the photo viewer. 0.5.0 was submitted with: "Shows the country of each seller on Vinted listing pages, and lets the user dim or hide listings from sellers outside a country they choose.")

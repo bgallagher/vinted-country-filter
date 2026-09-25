@@ -67,6 +67,16 @@
 .vlf-toggle svg { width: 18px; height: 18px; transition: transform 0.2s ease; }
 .vlf-collapsed .vlf-toggle svg { transform: rotate(180deg); }
 
+/* 429 pause notice: sits just above the header, so it shows even when collapsed. */
+.vlf-notice { flex: none; display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px;
+  font-size: 12px; line-height: 1.35; background: #ffe7b3; color: #5c3400; font-variant-numeric: tabular-nums; }
+.vlf-notice[hidden] { display: none; }
+.vlf-notice svg { flex: none; width: 15px; height: 15px; margin-top: 1px; }
+.vlf-panel .vlf-countdown { font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+  .vlf-notice { background: #3d2c0b; color: #ffd98a; }
+}
+
 /* Animated collapse. max-height must stay above the expanded body (~230px);
    raise it if settings are added. visibility switches off only after the close
    animation, which also takes the hidden controls out of the tab order. */

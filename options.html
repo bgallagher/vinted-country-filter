@@ -69,6 +69,12 @@
       font-size: 11.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
     .loading::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: vlf-pulse 1.2s ease-in-out infinite; }
     .loading[hidden] { display: none; }
+    /* 429 pause, with a countdown (refreshStats runs every second) */
+    .stats-paused { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; padding: 7px 9px; border-radius: 6px;
+      font-size: 12px; line-height: 1.35; background: #ffe7b3; color: #5c3400; font-variant-numeric: tabular-nums; }
+    .stats-paused[hidden] { display: none; }
+    .stats-paused svg { flex: none; width: 14px; height: 14px; margin-top: 1px; }
+    @media (prefers-color-scheme: dark) { .stats-paused { background: #3d2c0b; color: #ffd98a; } }
     .stats-empty, .stats-off { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; color: var(--muted); }
     .stats-empty svg, .stats-off svg { flex: none; width: 18px; height: 18px; }
     /* Filter switched off: grey logo, muted settings (still editable). */
@@ -139,6 +145,7 @@
           </div>
           <span class="loading" id="statsLoading" hidden></span>
         </div>
+        <p class="stats-paused" id="statsPaused" hidden><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><polyline points="12 7.5 12 12 15 14"></polyline></svg><span>Vinted is limiting lookups. <b id="statsPausedFor"></b></span></p>
       </div>
       <p class="stats-empty"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><line x1="16" y1="16" x2="20.5" y2="20.5"></line></svg><span>Open a Vinted search to see results</span></p>
       <p class="stats-off"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"></path><path d="M6.3 6.3a8 8 0 1 0 11.4 0"></path></svg><span>Filter is off. Sellers aren't being checked.</span></p>
