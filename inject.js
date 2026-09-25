@@ -80,11 +80,14 @@
     try {
       const url = typeof args[0] === "string" ? args[0] : args[0] && args[0].url;
       const ct = res.headers.get("content-type") || "";
+      // Read a copy in the background; the page gets its response untouched
+      // and without waiting.
+      const read = async (use) => { try { use(await res.clone().text()); } catch (_) {} };
       if (interesting(url) && ct.includes("json")) {
-        res.clone().text().then((t) => handleText(url, t)).catch(() => {});
+        read((t) => handleText(url, t));
       } else if (ct.includes("x-component")) {
         // Next.js client-side navigation (RSC payload) carries the same flight data
-        res.clone().text().then((t) => { const out = []; scanFlightText(t, out); post(out); }).catch(() => {});
+        read((t) => { const out = []; scanFlightText(t, out); post(out); });
       }
     } catch (_) {}
     return res;

@@ -19,6 +19,8 @@ refs = set(m.get("icons", {}).values()) | set(m.get("action", {}).get("default_i
 refs |= {m["action"]["default_popup"], m["options_ui"]["page"]}
 for cs in m["content_scripts"]:
     refs |= set(cs.get("js", [])) | set(cs.get("css", []))
+for war in m.get("web_accessible_resources", []):
+    refs |= set(war.get("resources", []))
 missing = sorted(refs - included)
 if missing:
     sys.exit("build: manifest references files missing from the zip (not committed?): " + ", ".join(missing))

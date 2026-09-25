@@ -1,0 +1,20 @@
+/* Colour tokens shared by the toolbar popup (options.html, on :root) and the
+   in-page panel and lightbox (content.js adopts this into its shadow root,
+   so :host). light-dark() follows color-scheme, which follows the OS. */
+:root, :host {
+  color-scheme: light dark;
+  --accent: light-dark(#007782, #4cb3bc);
+  --on-accent: light-dark(#ffffff, #08292c);
+  --bg: light-dark(#ffffff, #1a1c1d);
+  --subtle: light-dark(#f4f5f5, #242728);
+  --border: light-dark(#e2e4e4, #323738);
+  --border-strong: light-dark(#c6cbcc, #4a5152);
+  --text: light-dark(#171717, #ececec);
+  --muted: light-dark(#5f6566, #a2a9aa);
+  --focus: light-dark(rgba(0, 119, 130, 0.32), rgba(76, 179, 188, 0.45));
+  /* Switch track when off: at least 3:1 against --bg (non-text contrast). */
+  --switch-off: light-dark(#8a9192, #6b7374);
+  /* Amber, as on the "other country" badge: the 429 pause notice. */
+  --notice-bg: light-dark(#ffe7b3, #3d2c0b);
+  --notice-text: light-dark(#5c3400, #ffd98a);
+}

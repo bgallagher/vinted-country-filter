@@ -1,6 +1,6 @@
 # Vinted Country Filter
 
-Chrome/Edge/Brave extension that adds a country badge (e.g. `🇮🇪 IE`, `🇫🇷 FR`) to every
+Chrome/Edge/Brave extension (version 134 or later) that adds a country badge (e.g. `🇮🇪 IE`, `🇫🇷 FR`) to every
 Vinted listing and lets you dim or hide items from sellers outside your country.
 
 Not affiliated with, endorsed by, or connected to Vinted.

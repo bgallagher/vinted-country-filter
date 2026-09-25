@@ -21,24 +21,29 @@
     $("hideUnknown").checked = settings.hideUnknown;
   }
 
+  // "Saved" appears for a moment. Its text is set each time (and cleared
+  // after), so screen readers announce every save, not just the first.
   let savedT = 0;
-  function save(patch) {
+  async function save(patch) {
     settings = { ...settings, ...patch };
-    chrome.storage.sync.set({ settings }).then(() => {
-      $("saved").classList.add("is-visible");
-      clearTimeout(savedT);
-      savedT = setTimeout(() => $("saved").classList.remove("is-visible"), 1600);
-    });
+    try { await chrome.storage.sync.set({ settings }); } catch (_) { return; }
+    $("saved").classList.add("is-visible");
+    $("savedText").textContent = "Saved";
+    clearTimeout(savedT);
+    savedT = setTimeout(() => {
+      $("saved").classList.remove("is-visible");
+      savedT = setTimeout(() => { $("savedText").textContent = ""; }, 250); // after the fade
+    }, 1600);
   }
 
   // Controls start disabled in the HTML so nothing can be saved on top of the
   // defaults before the stored settings have loaded.
-  chrome.storage.sync.get("settings").then((r) => {
-    settings = vlfSettings(r.settings);
+  (async () => {
+    settings = vlfSettings((await chrome.storage.sync.get("settings")).settings);
     show();
     for (const c of controls) c.disabled = false;
     refreshStats(); // first refresh waits for settings, so "off" shows straight away
-  });
+  })();
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "sync" && changes.settings) { settings = vlfSettings(changes.settings.newValue); show(); refreshStats(); }
   });

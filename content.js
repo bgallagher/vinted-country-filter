@@ -25,18 +25,40 @@
   const homeCountry = () => settings.country || siteCountry;
 
   // ---------- storage
-  const ready = Promise.all([
-    chrome.storage.sync.get("settings").then((r) => { settings = vlfSettings(r.settings); }),
-    chrome.storage.local.get(["users", "rate"]).then((r) => {
-      const now = Date.now();
-      // Entries without a country (saved by 0.x for failed lookups) are
-      // skipped so those sellers get looked up again.
-      for (const [id, u] of Object.entries(r.users || {})) if (u && u.c && now - u.t < USER_TTL_MS) users[id] = u;
-      const rate = r.rate || {};
-      if (rate.limit >= LIMIT_MIN && rate.limit <= LIMIT_MAX) limit = rate.limit;
-      if (rate.burst >= BURST_MIN && rate.burst <= limit) burst = rate.burst;
-    }),
-  ]);
+  // Settings, the seller cache, the learned rate, and the panel/lightbox
+  // stylesheets (see root()). Nothing renders until these are in.
+  let sheets = [];
+  const ready = (async () => {
+    const [sync, local, loaded] = await Promise.all([
+      chrome.storage.sync.get("settings"),
+      chrome.storage.local.get(["users", "rate"]),
+      loadSheets(),
+    ]);
+    settings = vlfSettings(sync.settings);
+    const now = Date.now();
+    // Entries without a country (saved by 0.x for failed lookups) are
+    // skipped so those sellers get looked up again.
+    for (const [id, u] of Object.entries(local.users || {})) if (u && u.c && now - u.t < USER_TTL_MS) users[id] = u;
+    const rate = local.rate || {};
+    if (rate.limit >= LIMIT_MIN && rate.limit <= LIMIT_MAX) limit = rate.limit;
+    if (rate.burst >= BURST_MIN && rate.burst <= limit) burst = rate.burst;
+    sheets = loaded;
+  })();
+
+  // tokens.css and ui.css, for the shadow root. They're web-accessible
+  // resources (manifest.json) so this script can fetch them. If that fails,
+  // the panel still works, unstyled.
+  async function loadSheets() {
+    try {
+      return await Promise.all(["tokens.css", "ui.css"].map(async (file) => {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(await (await fetch(chrome.runtime.getURL(file))).text());
+        return sheet;
+      }));
+    } catch (_) {
+      return [];
+    }
+  }
 
   // Reloading or updating the extension cuts off the copy of this script
   // already running in open tabs: every chrome.* call then throws "Extension
@@ -52,8 +74,8 @@
     if (observer) observer.disconnect();
     clearTimeout(saveTimer);
     clearInterval(pauseTicker);
-    if (panel) panel.remove();
     closeLightbox();
+    if (host) host.remove();
     return false;
   }
 
@@ -63,9 +85,10 @@
   let saveTimer = null;
   function saveUsers() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      if (!alive()) return;
-      chrome.storage.local.get("users").then((r) => {
+    saveTimer = setTimeout(async () => {
+      try {
+        if (!alive()) return;
+        const r = await chrome.storage.local.get("users");
         if (!alive()) return;
         const now = Date.now();
         const merged = {};
@@ -75,8 +98,8 @@
           ids.sort((a, b) => merged[b].t - merged[a].t);
           for (const id of ids.slice(MAX_USERS)) delete merged[id];
         }
-        chrome.storage.local.set({ users: merged });
-      }).catch(() => {});
+        await chrome.storage.local.set({ users: merged });
+      } catch (_) { /* cut off mid-save: the next visit saves again */ }
     }, 1000);
   }
   function saveSettings() { if (alive()) chrome.storage.sync.set({ settings }); }
@@ -90,7 +113,7 @@
   });
 
   // ---------- owner map from inject.js
-  window.addEventListener("message", (e) => {
+  window.addEventListener("message", async (e) => {
     if (e.source !== window || !e.data || e.data.type !== "vlf:owners") return;
     for (const [item, user, photo] of e.data.pairs) {
       itemOwner.set(item, user);
@@ -98,7 +121,8 @@
     }
     // Wait for the cache and settings, or we'd re-fetch cached sellers and
     // build the panel with default settings.
-    ready.then(schedule);
+    try { await ready; } catch (_) { return; }
+    schedule();
   });
 
   // ---------- country lookups (queued + throttled)
@@ -234,6 +258,7 @@
   function startPauseTicker() {
     if (pauseTicker) return;
     schedule();
+    announce(`Vinted is limiting lookups. Resuming in ${pausedFor()} seconds.`);
     pauseTicker = setInterval(() => {
       if (!alive()) return;
       if (pausedFor()) return renderNotice();
@@ -274,7 +299,7 @@
   }
 
   function apply() {
-    if (lb && !lb.el.isConnected) closeLightbox(); // removed by the page (e.g. hydration): undo its scroll lock
+    if (lb && !lb.el.isConnected) closeLightbox(); // host removed by the page (e.g. hydration): undo its scroll lock
     if (!settings.enabled) return applyOff();
     pump(); // resume lookups that were queued before the filter was switched off
     const home = homeCountry();
@@ -285,22 +310,28 @@
     const vh = window.innerHeight;
     const ranked = new Map(); // userId -> { rank, row, left }, best card per seller
     const onPage = new Set(); // every uncached seller with a listing on the page
-    for (const { id, box, cell, seller } of cards()) {
-      total++;
-      const uid = itemOwner.get(id) || seller;
+    // Pass 1 only reads (owners, cache, card positions) and pass 2 only
+    // writes, so the browser lays out the page once, not after every badge.
+    const rows = cards().map((c) => {
+      const uid = itemOwner.get(c.id) || c.seller;
       const u = uid && users[uid];
-      if (uid && !u) {
-        want(uid);
-        onPage.add(uid);
-        const r = cell.getBoundingClientRect();
-        if (r.width && r.height) { // hidden cards have an empty rect; leave them unranked
-          const rank = r.bottom > 0 && r.top < vh ? 0 : r.top >= vh && r.top < vh + 400 ? 1 : r.bottom <= 0 && r.bottom > -200 ? 2 : 3;
-          const k = { rank, row: Math.round(r.top / 8), left: r.left }; // same row despite sub-pixel differences
-          const prev = ranked.get(uid);
-          if (!prev || byPosition(k, prev) < 0) ranked.set(uid, k);
-        }
+      return { ...c, uid, u, rect: uid && !u ? c.cell.getBoundingClientRect() : null };
+    });
+    for (const { uid, rect } of rows) {
+      if (!rect) continue;
+      want(uid);
+      onPage.add(uid);
+      if (rect.width && rect.height) { // hidden cards have an empty rect; leave them unranked
+        const r = rect;
+        const rank = r.bottom > 0 && r.top < vh ? 0 : r.top >= vh && r.top < vh + 400 ? 1 : r.bottom <= 0 && r.bottom > -200 ? 2 : 3;
+        const k = { rank, row: Math.round(r.top / 8), left: r.left }; // same row despite sub-pixel differences
+        const prev = ranked.get(uid);
+        if (!prev || byPosition(k, prev) < 0) ranked.set(uid, k);
       }
+    }
 
+    for (const { id, box, cell, uid, u } of rows) {
+      total++;
       let badge = box.querySelector(":scope .vlf-badge");
       if (!badge) {
         badge = document.createElement("div");
@@ -367,6 +398,37 @@
     raf = requestAnimationFrame(() => { raf = 0; if (alive()) apply(); });
   }
 
+  // ---------- shadow root (panel + lightbox)
+  // The panel and lightbox live in a shadow root, so Vinted's CSS can't reach
+  // them and ours can't leak out. The host sits on <body>; Vinted's React
+  // hydration can re-render <body> and drop it, so root() puts it back.
+  let host = null;
+  let shadow = null;
+  function root() {
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "vlf-root";
+      shadow = host.attachShadow({ mode: "open" });
+      shadow.adoptedStyleSheets = sheets;
+      shadow.innerHTML = '<div class="sr-only" role="status"></div>'; // announce()
+    }
+    if (!host.isConnected) document.body.appendChild(host);
+    return shadow;
+  }
+
+  // Screen-reader announcements: one polite live region, set only for events
+  // worth hearing ("Saved", a rate-limit pause), never for the counters. It's
+  // cleared first so the same message can be announced twice. Skipped while
+  // the lightbox is open, since a modal dialog makes the rest inert.
+  let announceT = 0;
+  function announce(text) {
+    if (!shadow || lb) return;
+    const region = shadow.querySelector('[role="status"]');
+    region.textContent = "";
+    clearTimeout(announceT);
+    announceT = setTimeout(() => { region.textContent = text; }, 100);
+  }
+
   // ---------- panel
   let panel;
   const PIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s-7-6.1-7-12a7 7 0 0 1 14 0c0 5.9-7 12-7 12z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>';
@@ -374,84 +436,88 @@
 
   function renderPanel() {
     if (!stats.total && !panel) return;
+    const sr = root();
     if (!panel) {
       panel = document.createElement("aside");
-      panel.className = "vlf-panel";
+      panel.className = "panel";
       panel.setAttribute("aria-label", "Vinted Country Filter");
+      // Body, notice, header: the header ends up at the bottom and the body
+      // opens upward, with Tab order following the layout.
       panel.innerHTML = `
-        <div class="vlf-head">
-          <span class="vlf-logo" aria-hidden="true">${PIN_SVG}</span>
-          <div class="vlf-titles"><span class="vlf-title">Seller location</span><span class="vlf-stats" role="status" aria-live="polite"></span></div>
-          <input type="checkbox" class="vlf-switch vlf-enabled" role="switch" aria-label="Vinted Country Filter on">
-          <button type="button" class="vlf-toggle"><svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
-        </div>
-        <div class="vlf-notice" hidden>
-          <svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><polyline points="12 7.5 12 12 15 14"></polyline></svg>
-          <p><span role="status">Vinted is limiting lookups.</span> <span class="vlf-countdown"></span></p>
-        </div>
-        <div class="vlf-body">
-          <div class="vlf-field">
-            <label class="vlf-label" for="vlf-country">My country</label>
-            <div class="vlf-select"><select class="vlf-country" id="vlf-country"></select></div>
-            <p class="vlf-hint">Listings from sellers in this country are kept.</p>
+        <div class="body" id="body">
+          <div class="field">
+            <label class="label" for="country">My country</label>
+            <div class="select"><select class="country" id="country"></select></div>
+            <p class="hint">Listings from sellers in this country are kept.</p>
           </div>
-          <div class="vlf-field">
-            <span class="vlf-label" id="vlf-mode-label">Listings from other countries</span>
-            <div class="vlf-mode vlf-seg" role="radiogroup" aria-labelledby="vlf-mode-label">
-              ${MODES.map(([v, label]) => `<input type="radio" name="vlf-mode" id="vlf-mode-${v}" value="${v}"><label for="vlf-mode-${v}">${label}</label>`).join("")}
+          <div class="field">
+            <span class="label" id="mode-label">Listings from other countries</span>
+            <div class="mode seg" role="radiogroup" aria-labelledby="mode-label">
+              ${MODES.map(([v, label]) => `<input type="radio" name="mode" id="mode-${v}" value="${v}"><label for="mode-${v}">${label}</label>`).join("")}
             </div>
           </div>
-          <div class="vlf-switch-row">
-            <label for="vlf-unknown">Also filter unknown sellers</label>
-            <input type="checkbox" class="vlf-unknown vlf-switch" id="vlf-unknown" role="switch">
+          <div class="switch-row">
+            <label for="unknown">Also filter unknown sellers</label>
+            <input type="checkbox" class="unknown switch" id="unknown" role="switch">
           </div>
+        </div>
+        <div class="notice" hidden>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><polyline points="12 7.5 12 12 15 14"></polyline></svg>
+          <p>Vinted is limiting lookups. <span class="countdown"></span></p>
+        </div>
+        <div class="head">
+          <span class="logo" aria-hidden="true">${PIN_SVG}</span>
+          <div class="titles"><span class="title">Seller location</span><span class="stats"></span></div>
+          <input type="checkbox" class="switch enabled" role="switch" aria-label="Vinted Country Filter on">
+          <button type="button" class="toggle" aria-controls="body"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
         </div>`;
 
       const $ = (s) => panel.querySelector(s);
-      vlfFillCountrySelect($(".vlf-country"), `This site (${vlfFlag(siteCountry)} ${vlfCountryName(siteCountry)})`);
+      vlfFillCountrySelect($(".country"), `This site (${vlfFlag(siteCountry)} ${vlfCountryName(siteCountry)})`);
+      sr.appendChild(panel);
       syncPanelInputs();
 
       const change = (patch) => { Object.assign(settings, patch); saveSettings(); flashSaved(); schedule(); };
-      $(".vlf-country").addEventListener("change", (e) => change({ country: e.target.value }));
-      $(".vlf-mode").addEventListener("change", (e) => change({ mode: e.target.value }));
-      $(".vlf-unknown").addEventListener("change", (e) => change({ hideUnknown: e.target.checked }));
-      $(".vlf-enabled").addEventListener("change", (e) => change({ enabled: e.target.checked }));
-      $(".vlf-toggle").addEventListener("click", () => { settings.collapsed = !settings.collapsed; saveSettings(); schedule(); });
+      $(".country").addEventListener("change", (e) => change({ country: e.target.value }));
+      $(".mode").addEventListener("change", (e) => change({ mode: e.target.value }));
+      $(".unknown").addEventListener("change", (e) => change({ hideUnknown: e.target.checked }));
+      $(".enabled").addEventListener("change", (e) => change({ enabled: e.target.checked }));
+      $(".toggle").addEventListener("click", () => { settings.collapsed = !settings.collapsed; saveSettings(); schedule(); });
     }
-    // Vinted's React hydration can re-render <body> and drop the panel; put it back.
-    if (!panel.isConnected) document.body.appendChild(panel);
-    const toggle = panel.querySelector(".vlf-toggle");
-    panel.classList.toggle("vlf-collapsed", settings.collapsed);
+    const toggle = panel.querySelector(".toggle");
+    panel.classList.toggle("collapsed", settings.collapsed);
+    panel.querySelector(".body").inert = settings.collapsed;
     toggle.setAttribute("aria-expanded", String(!settings.collapsed));
     toggle.setAttribute("aria-label", settings.collapsed ? "Expand panel" : "Collapse panel");
-    panel.classList.toggle("vlf-off", !settings.enabled);
+    panel.classList.toggle("off", !settings.enabled);
     const flashing = Date.now() < savedUntil;
-    const statsEl = panel.querySelector(".vlf-stats");
-    statsEl.classList.toggle("vlf-flash", flashing);
-    statsEl.textContent = flashing ? "Saved" : !settings.enabled ? "Off" :
+    const statsEl = panel.querySelector(".stats");
+    statsEl.classList.toggle("flash", flashing);
+    const text = flashing ? "Saved" : !settings.enabled ? "Off" :
       `${stats.shown}/${stats.total}` + (pausedFor() ? " · paused" : stats.pending ? ` · ${stats.pending} loading` : "");
+    if (statsEl.textContent !== text) statsEl.textContent = text;
     renderNotice();
   }
 
-  // "Vinted is limiting lookups. Resuming in 37s." Only the first sentence is
-  // a live region, so screen readers hear it once, not every second.
+  // "Vinted is limiting lookups. Resuming in 37s." Visible only; screen
+  // readers get one announcement when the pause starts (startPauseTicker).
   function renderNotice() {
     if (!panel) return;
-    const notice = panel.querySelector(".vlf-notice");
+    const notice = panel.querySelector(".notice");
     const secs = pausedFor();
     if (secs) startPauseTicker(); // e.g. the filter was switched back on mid-pause
     if (notice.hidden !== !secs) notice.hidden = !secs;
     const text = secs ? `Resuming in ${secs}s` : "";
-    const count = notice.querySelector(".vlf-countdown");
+    const count = notice.querySelector(".countdown");
     if (count.textContent !== text) count.textContent = text;
   }
 
   function syncPanelInputs() {
     if (!panel) return;
-    panel.querySelector(".vlf-country").value = settings.country;
-    for (const r of panel.querySelectorAll(".vlf-mode input")) r.checked = r.value === settings.mode;
-    panel.querySelector(".vlf-unknown").checked = settings.hideUnknown;
-    panel.querySelector(".vlf-enabled").checked = settings.enabled;
+    panel.querySelector(".country").value = settings.country;
+    for (const r of panel.querySelectorAll(".mode input")) r.checked = r.value === settings.mode;
+    panel.querySelector(".unknown").checked = settings.hideUnknown;
+    panel.querySelector(".enabled").checked = settings.enabled;
   }
 
   // "Saved" shows in place of the stats line for a moment after a change.
@@ -461,6 +527,7 @@
     savedUntil = Date.now() + 1600;
     clearTimeout(savedT);
     savedT = setTimeout(schedule, 1650);
+    announce("Saved");
   }
 
   // ---------- photos
@@ -472,11 +539,17 @@
 
   function loadPhotos(id, href) {
     if (!photoCache.has(id)) {
-      const p = fetch(href, { credentials: "include" })
-        .then((r) => (r.ok ? r.text() : ""))
-        .then(parsePhotos)
-        .catch(() => []);
-      p.then((list) => { if (!list.length) photoCache.delete(id); }); // failed: allow a retry
+      const p = (async () => {
+        try {
+          const r = await fetch(href, { credentials: "include" });
+          const list = r.ok ? parsePhotos(await r.text()) : [];
+          if (!list.length) photoCache.delete(id); // failed: allow a retry
+          return list;
+        } catch (_) {
+          photoCache.delete(id);
+          return [];
+        }
+      })();
       photoCache.set(id, p);
     }
     return photoCache.get(id);
@@ -514,7 +587,7 @@
     return "";
   }
 
-  const ZOOM_SVG = '<svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><line x1="16" y1="16" x2="20.5" y2="20.5"></line><line x1="11" y1="8.5" x2="11" y2="13.5"></line><line x1="8.5" y1="11" x2="13.5" y2="11"></line></svg>';
+  const ZOOM_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><line x1="16" y1="16" x2="20.5" y2="20.5"></line><line x1="11" y1="8.5" x2="11" y2="13.5"></line><line x1="8.5" y1="11" x2="13.5" y2="11"></line></svg>';
 
   function zoomButton(id) {
     const b = document.createElement("button");
@@ -541,9 +614,13 @@
   }, true);
 
   // ---------- lightbox
-  let lb = null; // { el, img, id, urls, index, loading, opener, onKey, overflow }
+  // A modal <dialog> in the shadow root: showModal() puts it in the top layer,
+  // makes the rest of the page inert and keeps focus inside; closedby="any"
+  // closes it on Esc or a click on the backdrop. Its "close" event does the
+  // cleanup, whichever way it was closed.
+  let lb = null; // { el, img, id, urls, index, loading, opener, overflow }
 
-  function openLightbox(id, opener) {
+  async function openLightbox(id, opener) {
     if (!alive()) return;
     closeLightbox();
     const box = opener.parentElement; // the card's image container
@@ -552,65 +629,50 @@
     const link = box && box.querySelector(CARD_LINK);
     const href = (link && link.href) || `/items/${id}`;
 
-    const el = document.createElement("div");
-    el.className = "vlf-lightbox";
-    el.setAttribute("role", "dialog");
-    el.setAttribute("aria-modal", "true");
+    const el = document.createElement("dialog");
+    el.className = "lightbox";
+    el.setAttribute("closedby", "any");
     el.setAttribute("aria-label", "Listing photos");
     el.innerHTML = `
-      <div class="vlf-lb-stage">
-        <img class="vlf-lb-img" alt="">
-        <button type="button" class="vlf-lb-nav vlf-lb-prev" aria-label="Previous photo"><svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 5 8 12 15 19"></polyline></svg></button>
-        <button type="button" class="vlf-lb-nav vlf-lb-next" aria-label="Next photo"><svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"></polyline></svg></button>
-        <button type="button" class="vlf-lb-close" aria-label="Close"><svg class="vlf-ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+      <img class="lb-img" alt="">
+      <div class="lb-bar">
+        <span class="lb-count" aria-live="polite"></span>
+        <a class="lb-link"></a>
       </div>
-      <div class="vlf-lb-bar">
-        <span class="vlf-lb-count" aria-live="polite"></span>
-        <a class="vlf-lb-link"></a>
-      </div>`;
+      <button type="button" class="lb-nav lb-prev" aria-label="Previous photo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 5 8 12 15 19"></polyline></svg></button>
+      <button type="button" class="lb-nav lb-next" aria-label="Next photo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"></polyline></svg></button>
+      <button type="button" class="lb-close" aria-label="Close" autofocus><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>`;
     const $ = (s) => el.querySelector(s);
-    $(".vlf-lb-link").href = href;
-    $(".vlf-lb-link").textContent = "Open listing";
-    $(".vlf-lb-prev").addEventListener("click", () => step(-1));
-    $(".vlf-lb-next").addEventListener("click", () => step(1));
-    $(".vlf-lb-close").addEventListener("click", closeLightbox);
-    el.addEventListener("click", (e) => { if (e.target === el || e.target.classList.contains("vlf-lb-stage")) closeLightbox(); });
-
-    // Listening only while open: Esc closes, arrows step, Tab stays inside.
-    const onKey = (e) => {
-      if (!el.isConnected) { closeLightbox(); return; } // removed by the page: stop handling keys
-      if (e.key === "Escape") closeLightbox();
-      else if (e.key === "ArrowLeft") step(-1);
+    $(".lb-link").href = href;
+    $(".lb-link").textContent = "Open listing";
+    $(".lb-prev").addEventListener("click", () => step(-1));
+    $(".lb-next").addEventListener("click", () => step(1));
+    $(".lb-close").addEventListener("click", () => el.close());
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") step(-1);
       else if (e.key === "ArrowRight") step(1);
-      else if (e.key === "Tab") {
-        const f = [...el.querySelectorAll("button, a")].filter((n) => !n.hidden);
-        const i = f.indexOf(document.activeElement);
-        const next = f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length];
-        if (next) next.focus();
-      } else return;
+      else return;
       e.preventDefault();
-      e.stopPropagation();
-    };
-    document.addEventListener("keydown", onKey, true);
+    });
+    el.addEventListener("close", () => { if (lb && lb.el === el) closeLightbox(); });
 
-    lb = { el, img: $(".vlf-lb-img"), id, urls: first ? [first] : [], index: 0, loading: true, opener, onKey,
+    lb = { el, img: $(".lb-img"), id, urls: first ? [first] : [], index: 0, loading: true, opener,
       overflow: document.documentElement.style.overflow };
     document.documentElement.style.overflow = "hidden"; // no page scrolling behind the lightbox
-    document.body.appendChild(el);
+    root().appendChild(el);
     showPhoto();
-    $(".vlf-lb-close").focus();
+    el.showModal();
 
-    loadPhotos(id, href).then((list) => {
-      if (!lb || lb.id !== id) return; // closed or replaced meanwhile
-      lb.loading = false;
-      if (list.length) {
-        const shown = lb.urls[lb.index];
-        const at = list.indexOf(shown);
-        lb.urls = list;
-        lb.index = at >= 0 ? at : 0;
-      }
-      showPhoto();
-    });
+    const list = await loadPhotos(id, href);
+    if (!lb || lb.id !== id) return; // closed or replaced meanwhile
+    lb.loading = false;
+    if (list.length) {
+      const shown = lb.urls[lb.index];
+      const at = list.indexOf(shown);
+      lb.urls = list;
+      lb.index = at >= 0 ? at : 0;
+    }
+    showPhoto();
   }
 
   function step(d) {
@@ -624,25 +686,27 @@
     const n = urls.length;
     if (urls[index] && img.getAttribute("src") !== urls[index]) img.src = urls[index];
     img.alt = n ? `Photo ${index + 1} of ${n}` : "";
-    for (const b of el.querySelectorAll(".vlf-lb-nav")) b.hidden = n < 2;
-    el.querySelector(".vlf-lb-count").textContent =
+    for (const b of el.querySelectorAll(".lb-nav")) b.hidden = n < 2;
+    el.querySelector(".lb-count").textContent =
       n > 1 ? `${index + 1} / ${n}` : loading ? "Loading more photos…" : n ? "1 / 1" : "No photos found";
   }
 
   function closeLightbox() {
     if (!lb) return;
-    const { el, opener, onKey, overflow } = lb;
+    const { el, opener, overflow } = lb;
     lb = null;
-    document.removeEventListener("keydown", onKey, true);
     document.documentElement.style.overflow = overflow;
+    if (el.open) el.close();
     el.remove();
     if (opener && opener.isConnected) opener.focus();
   }
 
   // ---------- boot
-  ready.then(() => {
+  (async () => {
+    try { await ready; } catch (_) { return; } // cut off before loading
     window.postMessage({ type: "vlf:rescan" }, location.origin);
-    const ours = (n) => n.nodeType !== 1 || !!n.closest(".vlf-badge, .vlf-zoom, .vlf-lightbox") || (panel && panel.contains(n));
+    // Changes inside the shadow root don't reach this observer at all.
+    const ours = (n) => n.nodeType !== 1 || n === host || !!n.closest(".vlf-badge, .vlf-zoom");
     observer = new MutationObserver((muts) => {
       const external = muts.some((m) =>
         // A removed element (even our panel or a badge, e.g. during React
@@ -657,5 +721,5 @@
     let scrollT = 0;
     window.addEventListener("scroll", () => { clearTimeout(scrollT); scrollT = setTimeout(schedule, 250); }, { passive: true });
     schedule();
-  });
+  })();
 })();
