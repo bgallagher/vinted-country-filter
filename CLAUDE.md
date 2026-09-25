@@ -17,7 +17,7 @@ There is no build step, package manager, linter or test suite for development: t
 
 ## Releasing
 
-- `scripts/build.sh` builds `dist/vinted-country-filter-<version>.zip` from committed files at HEAD. It leaves out repo-only files (`.github/`, `store/`, `scripts/`, docs) and fails if the manifest references a file that isn't committed. This zip is what gets uploaded to the Chrome Web Store.
+- `scripts/build.sh` builds `dist/vinted-country-filter-<version>.zip` from committed files at HEAD. It leaves out repo-only files (`.github/`, `docs/`, `store/`, `scripts/`, docs) and fails if the manifest references a file that isn't committed. This zip is what gets uploaded to the Chrome Web Store.
 - To release, run `scripts/release.sh <version>`. Add `--dry-run` to run only the checks, or `--yes` to skip the prompt (needed when not in a terminal). Before changing anything, it checks: the version looks like x.y.z; you're on `main`, with nothing uncommitted and in sync with `origin/main`; tag `v<version>` doesn't exist locally or on GitHub; the version is newer than every existing tag and not below `manifest.json`. It then sets the manifest version (committing "Release <version>" if it changed), and pushes `main` and an annotated tag. The tag push makes `.github/workflows/release.yml` build the zip on GitHub and create the release, with the zip attached and auto-generated notes. The workflow also fails if the tag and manifest version differ. `v0.*` tags become pre-releases.
 - Web Store listing text and privacy-tab answers are in `store/listing.md`. The privacy policy is `PRIVACY.md`.
 

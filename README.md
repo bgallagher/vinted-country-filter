@@ -5,6 +5,16 @@ Vinted listing and lets you dim or hide items from sellers outside your country.
 
 Not affiliated with, endorsed by, or connected to Vinted.
 
+![Vinted search results with the extension set to Ireland: listings from Irish sellers carry a teal IE badge, a French seller's listing is dimmed with an amber FR badge, and the settings panel is open in the bottom-right corner](docs/screenshots/search.png)
+
+The toolbar popup follows your system's light or dark mode:
+
+<p>
+  <img src="docs/screenshots/popup-light.png" width="300" alt="Toolbar popup in light mode: 42 of 96 listings shown on this page, 12 still loading, country set to Ireland, other countries dimmed">
+  &nbsp;
+  <img src="docs/screenshots/popup-dark.png" width="300" alt="The same popup in dark mode">
+</p>
+
 ## Install (unpacked)
 1. Download the latest `vinted-country-filter-<version>.zip` from
    [Releases](https://github.com/bgallagher/vinted-country-filter/releases) and unzip it, or clone
