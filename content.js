@@ -404,6 +404,7 @@
   // hydration can re-render <body> and drop it, so root() puts it back.
   let host = null;
   let shadow = null;
+  let focusBefore = null; // last focused element on Vinted's page, for hidePanel()
   function root() {
     if (!host) {
       host = document.createElement("div");
@@ -411,6 +412,8 @@
       shadow = host.attachShadow({ mode: "open" });
       shadow.adoptedStyleSheets = sheets;
       shadow.innerHTML = '<div class="sr-only" role="status"></div>'; // announce()
+      // Focus inside the shadow root is reported as the host.
+      document.addEventListener("focusin", (e) => { if (e.target !== host) focusBefore = e.target; });
     }
     if (!host.isConnected) document.body.appendChild(host);
     return shadow;
@@ -435,6 +438,9 @@
   const MODES = [["badge", "Show"], ["dim", "Dim"], ["hide", "Hide"]];
 
   function renderPanel() {
+    // Hidden from its own button or the popup. It's kept, not removed, so
+    // syncPanelInputs() still works and showing it again is instant.
+    if (!settings.showPanel) { if (panel) panel.hidden = true; return; }
     if (!stats.total && !panel) return;
     const sr = root();
     if (!panel) {
@@ -460,6 +466,7 @@
             <label for="unknown">Also filter unknown sellers</label>
             <input type="checkbox" class="unknown switch" id="unknown" role="switch">
           </div>
+          <button type="button" class="hide-panel" title="Hide panel. Turn it back on from the extension's toolbar button."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c5.5 0 9 7 9 7a15.6 15.6 0 0 1-2.4 3.2"></path><path d="M6.6 6.6C4.3 8.1 3 12 3 12s3.5 7 9 7a9.3 9.3 0 0 0 5.4-1.6"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg>Hide panel</button>
         </div>
         <div class="notice" hidden>
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><polyline points="12 7.5 12 12 15 14"></polyline></svg>
@@ -483,7 +490,9 @@
       $(".unknown").addEventListener("change", (e) => change({ hideUnknown: e.target.checked }));
       $(".enabled").addEventListener("change", (e) => change({ enabled: e.target.checked }));
       $(".toggle").addEventListener("click", () => { settings.collapsed = !settings.collapsed; saveSettings(); schedule(); });
+      $(".hide-panel").addEventListener("click", hidePanel);
     }
+    panel.hidden = false;
     const toggle = panel.querySelector(".toggle");
     panel.classList.toggle("collapsed", settings.collapsed);
     panel.querySelector(".body").inert = settings.collapsed;
@@ -497,6 +506,19 @@
       `${stats.shown}/${stats.total}` + (pausedFor() ? " · paused" : stats.pending ? ` · ${stats.pending} loading` : "");
     if (statsEl.textContent !== text) statsEl.textContent = text;
     renderNotice();
+  }
+
+  // The "Hide panel" button. Hiding the panel takes focus with it, so it goes
+  // back to where it was on Vinted's page before the panel (else to <body>,
+  // where Tab starts again from the top).
+  function hidePanel() {
+    settings.showPanel = false;
+    saveSettings();
+    panel.hidden = true;
+    if (focusBefore && focusBefore.isConnected) focusBefore.focus({ preventScroll: true });
+    else if (document.activeElement === host) host.blur();
+    announce("Panel hidden. Show it again from the extension's toolbar button.");
+    schedule();
   }
 
   // "Vinted is limiting lookups. Resuming in 37s." Visible only; screen

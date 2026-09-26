@@ -56,7 +56,7 @@
     /* Filter switched off: grey logo, muted settings (still editable). */
     body.is-off .logo { background: var(--border-strong); }
     body.is-off .logo circle { fill: var(--border-strong); }
-    body.is-off .field, body.is-off .switch-row { opacity: 0.55; }
+    body.is-off .field, body.is-off .switch-row:not(.display) { opacity: 0.55; }
 
     /* Fields */
     .field { min-width: 0; margin: 0; padding: 0; border: 0; }
@@ -156,6 +156,11 @@
     <div class="switch-row">
       <label for="hideUnknown">Also filter sellers whose country is unknown</label>
       <input type="checkbox" id="hideUnknown" class="switch" role="switch" disabled>
+    </div>
+
+    <div class="switch-row display">
+      <label for="showPanel">Show the panel on Vinted pages</label>
+      <input type="checkbox" id="showPanel" class="switch" role="switch" disabled>
     </div>
   </div>
   <script src="shared.js"></script>

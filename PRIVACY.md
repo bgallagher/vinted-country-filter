@@ -42,7 +42,7 @@ The extension stores two things, both using your browser's built-in extension st
    avoids asking Vinted for the same seller twice. Entries are discarded after 90 days.
 2. **Your settings.** These are your chosen country, whether the filter is on, whether other
    listings are shown, dimmed or hidden, whether sellers with an unknown country are filtered,
-   and whether the on-page panel is collapsed. They are stored with your browser's "sync"
+   and whether the on-page panel is shown or collapsed. They are stored with your browser's "sync"
    storage. If you have turned on sync in your browser, the browser may copy these settings to
    your other devices through your browser account (for Chrome, your Google account). The
    developer has no access to them.

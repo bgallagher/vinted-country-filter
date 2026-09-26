@@ -4,7 +4,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const modeInputs = [...document.querySelectorAll('input[name="mode"]')];
-  const controls = [$("enabled"), $("country"), $("hideUnknown"), ...modeInputs];
+  const controls = [$("enabled"), $("country"), $("hideUnknown"), $("showPanel"), ...modeInputs];
   let settings = { ...VLF_DEFAULTS };
 
   // Inside chrome://extensions this page is the options dialog, which is wider.
@@ -19,6 +19,7 @@
     $("country").value = settings.country;
     for (const r of modeInputs) r.checked = r.value === settings.mode;
     $("hideUnknown").checked = settings.hideUnknown;
+    $("showPanel").checked = settings.showPanel;
   }
 
   // "Saved" appears for a moment. Its text is set each time (and cleared
@@ -52,6 +53,7 @@
   $("country").addEventListener("change", (e) => save({ country: e.target.value }));
   for (const r of modeInputs) r.addEventListener("change", (e) => save({ mode: e.target.value }));
   $("hideUnknown").addEventListener("change", (e) => save({ hideUnknown: e.target.checked }));
+  $("showPanel").addEventListener("change", (e) => save({ showPanel: e.target.checked }));
 
   // "This page" card: ask content.js in the active tab for its counts. Any
   // failure (not a Vinted tab, or opened before the extension loaded) shows

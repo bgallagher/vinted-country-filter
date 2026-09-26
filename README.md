@@ -32,6 +32,8 @@ The toolbar popup follows your system's light or dark mode:
   country's site, e.g. you live in Ireland but browse `vinted.fr`.
 - **Other countries**: `Show (badge only)`, `Dim`, or `Hide` listings from sellers elsewhere.
 - **Also filter unknown**: treat sellers whose country couldn't be read as "other".
+- **Hide panel** (at the bottom of the expanded panel): hides the panel on every Vinted page. Turn
+  it back on with **Show the panel on Vinted pages** in the popup.
 - Hover a badge to see the seller's city (when they've made it public).
 - **View photos**: click the magnifier in the bottom-left corner of a listing's photo to see all
   of its photos full size, without leaving the results. Use ← / → to step through them, and Esc to close.
