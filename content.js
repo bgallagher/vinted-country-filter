@@ -7,13 +7,21 @@
   // Vinted rate-limits /api/v2/users at roughly 30 requests per 30s. A lookup
   // may start while fewer than `limit` started in the last 30s and fewer than
   // `burst` in the last 3s (sliding windows): a quick burst for the listings
-  // on screen, then a steady rate. Both are learned from 429s and saved.
+  // on screen, then a steady rate. Both are learned from 429s and saved, and
+  // relax back toward the start after a quiet spell (relaxRate()), so one bad
+  // moment doesn't keep lookups slow for good.
   // Up to CONCURRENCY lookups run at once.
   const CONCURRENCY = 4;
   const WINDOW_MS = 30000, BURST_MS = 3000;
-  const LIMIT_START = 25, LIMIT_MIN = 8, LIMIT_MAX = 28, BURST_MIN = 3;
+  // BURST_START is low because Vinted was seen allowing only about 5 starts
+  // in 3s (2026-09-26): starting higher meant a 429 on nearly every first search.
+  const LIMIT_START = 25, LIMIT_MIN = 8, LIMIT_MAX = 28, BURST_MIN = 3, BURST_START = 6;
+  const RELAX_MS = 10 * 60 * 1000, RELAX_MAX = 80 * 60 * 1000;
   let limit = LIMIT_START;
-  let burst = LIMIT_START; // no tighter than `limit` until a 429 says otherwise
+  let burst = BURST_START;
+  let calmSince = 0;       // our last 429 or relax step; relaxRate() counts from here
+  let relaxMs = RELAX_MS;  // quiet time before each relax step; doubles when a step brings 429s
+  let relaxedAt = 0;       // time of the last relax step
 
   // VLF_* come from shared.js.
   const siteCountry = VLF_TLD_COUNTRY[location.hostname.replace(/^.*?vinted\./, "")] || "IE";
@@ -42,6 +50,13 @@
     const rate = local.rate || {};
     if (rate.limit >= LIMIT_MIN && rate.limit <= LIMIT_MAX) limit = rate.limit;
     if (rate.burst >= BURST_MIN && rate.burst <= limit) burst = rate.burst;
+    // 0.7.x (no `every`) started at 25 and crept up to 28, so a high burst
+    // saved by it isn't evidence Vinted allows it: start from BURST_START.
+    if (!("every" in rate)) burst = Math.min(burst, BURST_START);
+    calmSince = rate.calm || rate.t || 0; // 0.7.x saved only `t`
+    if (rate.every >= RELAX_MS && rate.every <= RELAX_MAX) relaxMs = rate.every;
+    relaxedAt = rate.relaxed || 0;
+    relaxRate(now);
     sheets = loaded;
   })();
 
@@ -135,23 +150,50 @@
   let timer = 0;   // the single pending pump() timer, if any
   let okStreak = 0; // successes since the last 429
 
-  // Start times of recent lookups, kept in this tab's sessionStorage so a
-  // reload or the next search within 30s doesn't burst into a window Vinted
-  // is still counting. Falls back to memory if storage is blocked.
+  // Start times of recent lookups, kept in the site's localStorage so every
+  // tab on this Vinted site shares one count, as Vinted's limit does: a
+  // second tab, a reload or the next search within 30s doesn't burst into a
+  // window Vinted is still counting, and a 429 is blamed on the right cause.
+  // Re-read before each use, since other tabs write it too. Falls back to
+  // memory if storage is blocked.
   const STARTS_KEY = "vlf:starts";
   let starts = [];
-  try { starts = (JSON.parse(sessionStorage.getItem(STARTS_KEY)) || []).filter((t) => typeof t === "number"); } catch (_) {}
   function recentStarts(now) {
-    starts = starts.filter((t) => now - t < WINDOW_MS);
+    try { starts = (JSON.parse(localStorage.getItem(STARTS_KEY)) || []).filter((t) => typeof t === "number"); } catch (_) {}
+    starts = starts.filter((t) => now - t < WINDOW_MS && t <= now).sort((a, b) => a - b);
     return starts;
   }
   function recordStart(now) {
-    starts.push(now);
-    try { sessionStorage.setItem(STARTS_KEY, JSON.stringify(starts)); } catch (_) {}
+    recentStarts(now).push(now);
+    try { localStorage.setItem(STARTS_KEY, JSON.stringify(starts)); } catch (_) {}
   }
 
   function saveRate() {
-    if (alive()) chrome.storage.local.set({ rate: { limit, burst, t: Date.now() } });
+    if (alive()) chrome.storage.local.set({ rate: { limit, burst, calm: calmSince, every: relaxMs, relaxed: relaxedAt, t: Date.now() } });
+  }
+
+  // For each `relaxMs` since our last 429 (or the last step), win back half
+  // of what 429s took off: `limit` toward LIMIT_START, `burst` toward
+  // BURST_START (the success count in lookup() can take it higher). A burst
+  // of 3 is back to 5 after 10 quiet minutes and 6 after 20.
+  // If Vinted really is that strict, the step brings 429s, the code learns
+  // the limit again, and lookup() doubles `relaxMs` (up to RELAX_MAX) so the
+  // next try comes later. Once the full rate has held for `relaxMs`, it's
+  // back to RELAX_MS.
+  function relaxRate(now) {
+    const burstGoal = () => Math.min(BURST_START, limit);
+    const full = () => limit >= LIMIT_START && burst >= burstGoal();
+    let changed = false;
+    if (full() && relaxMs > RELAX_MS && now - calmSince >= relaxMs) { relaxMs = RELAX_MS; changed = true; }
+    calmSince = Math.max(calmSince, now - relaxMs * 5); // enough to relax fully; 0 = never limited
+    while (now - calmSince >= relaxMs && !full()) {
+      if (limit < LIMIT_START) limit += Math.ceil((LIMIT_START - limit) / 2);
+      if (burst < burstGoal()) burst += Math.ceil((burstGoal() - burst) / 2);
+      calmSince += relaxMs;
+      relaxedAt = now;
+      changed = true;
+    }
+    if (changed) saveRate();
   }
 
   // Adds a seller to the queue. The order is set by prioritize() at the end
@@ -184,6 +226,7 @@
   function pump() {
     if (!settings.enabled || active >= CONCURRENCY || !queue.length) return;
     const now = Date.now();
+    relaxRate(now);
     const recent = recentStarts(now); // oldest first
     // A window is full: wait until enough of its oldest starts have aged out.
     const windowWait = recent.length >= limit ? recent[recent.length - limit] + WINDOW_MS - now : 0;
@@ -222,6 +265,15 @@
         if (in3 - 2 >= BURST_MIN && in3 - 2 < burst) burst = in3 - 2;
         else if (in30 - 3 >= LIMIT_MIN && in30 - 3 < limit) limit = in30 - 3;
         burst = Math.min(burst, limit);
+        if (in3 - 2 >= BURST_MIN || in30 - 3 >= LIMIT_MIN) { // ours, not another cause
+          // The last relax step went too far: wait longer before the next.
+          // Each of our 429s within `relaxMs` of the step doubles it again,
+          // so a limit that needs several 429s to relearn backs off harder.
+          // (Doubling once per step instead gave about 1.3-1.5x the 429s
+          // against strict limits in the simulation.)
+          if (relaxedAt && now - relaxedAt < relaxMs) relaxMs = Math.min(relaxMs * 2, RELAX_MAX);
+          calmSince = now;
+        }
         saveRate();
         okStreak = 0;
         return;
