@@ -212,6 +212,7 @@ fill it in from the dashboard where it says "not recorded".
 
 | Version | Date | Changes | Status |
 |---------|------|---------|--------|
+| 0.9.0 | 2026-09-29 | A "Share feedback" link in the toolbar popup, opening a feedback form in a new tab. Nothing else changes; the privacy policy has a new section for the link. | Draft: upload this one |
 | 0.8.1 | 2026-09-29 | No user-facing changes: the extension is the same as 0.8.0. Released on GitHub only, to check the release pipeline after the repo's reorganisation (tests, tooling, `src/` layout). | Not uploaded (GitHub release only) |
 | 0.8.0 | 2026-09-26 | Seller lookups share one pace across all Vinted tabs and recover by themselves after Vinted slows them down; fewer "limiting lookups" pauses on a first search. The on-page panel can be hidden (bring it back from the toolbar button). Refreshed panel and photo viewer. | Not recorded |
 | 0.7.0 | 2026-09-25 | Badges on the home feed, seller promotions and listing pages, not just search. Countdown when Vinted limits lookups. | Not recorded |
