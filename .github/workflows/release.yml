@@ -17,7 +17,7 @@ jobs:
 
       - name: Check tag matches manifest version
         run: |
-          manifest_version=$(python3 -c 'import json; print(json.load(open("manifest.json"))["version"])')
+          manifest_version=$(python3 -c 'import json; print(json.load(open("src/manifest.json"))["version"])')
           if [ "${GITHUB_REF_NAME#v}" != "$manifest_version" ]; then
             echo "::error::Tag $GITHUB_REF_NAME doesn't match manifest.json version $manifest_version"
             exit 1

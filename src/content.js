@@ -28,7 +28,7 @@
 
   const itemOwner = new Map(); // itemId -> userId
   const itemPhoto = new Map(); // itemId -> main photo URL at f800, when inject.js saw one
-  let users = {};              // userId -> { c: "IE", city: "Dublin", t: fetchedAt }
+  const users = {};            // userId -> { c: "IE", city: "Dublin", t: fetchedAt }
   let settings = { ...VLF_DEFAULTS }; // mode: "badge" | "dim" | "hide"
   const homeCountry = () => settings.country || siteCountry;
 

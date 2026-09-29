@@ -20,7 +20,7 @@ The toolbar popup follows your system's light or dark mode:
    [Releases](https://github.com/bgallagher/vinted-country-filter/releases) and unzip it, or clone
    this repo.
 2. Open `chrome://extensions`, turn on **Developer mode**.
-3. **Load unpacked** → select the unzipped folder (or the repo folder).
+3. **Load unpacked** → select the unzipped folder (or the repo's `src/` folder).
 4. Open any Vinted search or the home page. A "Seller location" panel appears bottom-right; pick your country there.
 
 ## Using it
@@ -48,11 +48,11 @@ Badges: teal = your country, amber = another country, pulsing `…` = still look
 
 ## How it works
 Vinted's listings don't include seller location, only the seller's user ID.
-- `inject.js` (page context) reads item → seller IDs from the server-rendered page and from
+- `src/inject.js` (page context) reads item → seller IDs from the server-rendered page and from
   the responses Vinted loads later (search pages, the home feed, seller promotion boxes, a
   listing's "Member's items" and "Similar items", profile wardrobes). It only reads responses
   and never changes them.
-- `content.js` looks up each seller via `/api/v2/users/{id}` (`country_iso_code`), caches the
+- `src/content.js` looks up each seller via `/api/v2/users/{id}` (`country_iso_code`), caches the
   result for 90 days in `chrome.storage.local`, and badges/filters the grid.
 
 ## Limits
@@ -70,7 +70,8 @@ countries in your browser for 90 days. See [PRIVACY.md](PRIVACY.md).
 
 ## Building and releasing
 - `scripts/build.sh` builds `dist/vinted-country-filter-<version>.zip` (the file to upload to the
-  Chrome Web Store) from committed files.
-- `scripts/release.sh <version>` checks the version and repo state, updates `manifest.json`, and
+  Chrome Web Store) from the committed `src/` folder. Store listing text, permission
+  justifications and privacy answers are in [CHROMEWEBSTORE.md](CHROMEWEBSTORE.md).
+- `scripts/release.sh <version>` checks the version and repo state, updates `src/manifest.json`, and
   pushes a `v<version>` tag. GitHub Actions then builds the zip and publishes it as a release.
   Use `--dry-run` to run only the checks.

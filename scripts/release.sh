@@ -1,5 +1,5 @@
 #!/bin/sh
-# Release a new version: sets manifest.json's version, commits it, and pushes
+# Release a new version: sets src/manifest.json's version, commits it, and pushes
 # a matching tag. The tag push makes .github/workflows/release.yml build the
 # zip and publish the GitHub release.
 #
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 die() { echo "release: $*" >&2; exit 1; }
 # Prints the higher of two x.y.z versions.
 max_version() { printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | tail -1; }
-manifest_version() { python3 -c 'import json; print(json.load(open("manifest.json"))["version"])'; }
+manifest_version() { python3 -c 'import json; print(json.load(open("src/manifest.json"))["version"])'; }
 
 version="" yes="" dry=""
 for arg in "$@"; do
@@ -61,13 +61,13 @@ fi
 if [ "$current" != "$version" ]; then
   python3 - "$version" <<'PY'
 import re, sys
-text = open("manifest.json").read()
+text = open("src/manifest.json").read()
 text, n = re.subn(r'("version"\s*:\s*")[^"]*(")', r"\g<1>" + sys.argv[1] + r"\g<2>", text, count=1)
 if n != 1:
     sys.exit("release: couldn't find the version in manifest.json")
-open("manifest.json", "w").write(text)
+open("src/manifest.json", "w").write(text)
 PY
-  git commit --quiet -m "Release $version" manifest.json
+  git commit --quiet -m "Release $version" src/manifest.json
 fi
 ./scripts/build.sh >/dev/null # same check the workflow runs: every manifest file is committed
 git tag -a "$tag" -m "Release $version"

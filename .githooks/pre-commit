@@ -1,0 +1,33 @@
+#!/bin/sh
+# Lints the staged .js and .css files, then runs the test suite unless only
+# docs changed. Enabled by `npm install` (the "prepare" script sets
+# core.hooksPath to .githooks). Skip once with `git commit --no-verify`.
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+
+staged=$(git diff --cached --name-only --diff-filter=ACMRD)
+[ -n "$staged" ] || exit 0
+js=$(git diff --cached --name-only --diff-filter=ACMR -- '*.js' '*.mjs')
+css=$(git diff --cached --name-only --diff-filter=ACMR -- '*.css')
+code=$(printf '%s\n' "$staged" | grep -vE '(\.md$|^docs/)' || true)
+
+if [ ! -x node_modules/.bin/eslint ] || [ ! -x node_modules/.bin/stylelint ]; then
+  echo "pre-commit: dev tools not installed. Run \`npm install\`, or commit with --no-verify." >&2
+  exit 1
+fi
+
+# shellcheck disable=SC2086
+[ -z "$js" ] || node_modules/.bin/eslint --no-warn-ignored $js
+# shellcheck disable=SC2086
+[ -z "$css" ] || node_modules/.bin/stylelint --allow-empty-input $css
+
+# The tests run against the working tree, not just what's staged. They run
+# git in scratch repos, so they mustn't inherit this commit's GIT_INDEX_FILE
+# and friends (absolute paths to this repo's index under `git commit -a`).
+if [ -n "$code" ]; then
+  if ! out=$(unset $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p'); npm test --silent 2>&1); then
+    printf '%s\n' "$out" | sed -n '/failing tests:/,$p' >&2
+    echo "pre-commit: tests failed (full output: npm test)." >&2
+    exit 1
+  fi
+fi

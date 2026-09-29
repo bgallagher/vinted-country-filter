@@ -1,0 +1,23 @@
+{
+  "name": "vinted-country-filter",
+  "private": true,
+  "description": "Dev tooling only (linters, tests). The extension itself has no dependencies or build step.",
+  "type": "module",
+  "scripts": {
+    "lint": "npm run lint:js && npm run lint:css",
+    "lint:js": "eslint .",
+    "lint:css": "stylelint \"**/*.css\"",
+    "test": "node --test \"test/**/*.test.js\"",
+    "check": "npm run lint && npm test",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@sinonjs/fake-timers": "^15.4.0",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "jsdom": "^29.1.1",
+    "stylelint": "^17.15.0",
+    "stylelint-config-recommended": "^18.0.0"
+  }
+}
