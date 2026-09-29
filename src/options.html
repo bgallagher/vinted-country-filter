@@ -87,6 +87,16 @@
     #mode:has(input[value="dim"]:checked) .mode-hint[data-mode="dim"],
     #mode:has(input[value="hide"]:checked) .mode-hint[data-mode="hide"] { display: block; }
 
+    /* Feedback footer: a full-width band under the settings */
+    .foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px;
+      padding: 12px 16px; background: var(--subtle); border-top: 1px solid var(--border); }
+    .foot p { margin: 0; font-size: 13px; color: var(--muted); }
+    .foot a { display: inline-flex; align-items: center; gap: 5px; border-radius: 4px;
+      font-size: 13px; font-weight: 650; color: var(--accent); text-decoration: none; }
+    .foot a:hover { text-decoration: underline; text-underline-offset: 2px; }
+    .foot a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .foot svg { flex: none; width: 14px; height: 14px; }
+
     /* Switch row */
     .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px;
       padding-top: 14px; border-top: 1px solid var(--border); }
@@ -163,6 +173,10 @@
       <input type="checkbox" id="showPanel" class="switch" role="switch" disabled>
     </div>
   </div>
+  <footer class="foot">
+    <p>Something not working, or have an idea?</p>
+    <a href="https://forms.gle/XprzA9V3wfzxu4im8" target="_blank" rel="noopener noreferrer" aria-label="Share feedback (opens in a new tab)">Share feedback<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"></path><line x1="20" y1="4" x2="11" y2="13"></line><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"></path></svg></a>
+  </footer>
   <script src="shared.js"></script>
   <script src="options.js"></script>
 </body>

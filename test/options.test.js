@@ -58,6 +58,24 @@ describe("loading", () => {
   });
 });
 
+describe("feedback link", () => {
+  test("opens the feedback form in a new tab, safely", async () => {
+    const page = await optionsPage();
+    const link = page.document.querySelector(".foot a");
+    assert.equal(link.href, "https://forms.gle/XprzA9V3wfzxu4im8");
+    assert.equal(link.target, "_blank");
+    assert.deepEqual(link.rel.split(" ").sort(), ["noopener", "noreferrer"]);
+    assert.match(link.getAttribute("aria-label"), /^Share feedback \(opens in a new tab\)$/);
+    assert.match(link.textContent, /^Share feedback/);
+  });
+
+  test("is the only link to anywhere outside the extension", async () => {
+    const page = await optionsPage();
+    const links = [...page.document.querySelectorAll("a[href]")];
+    assert.equal(links.length, 1);
+  });
+});
+
 describe("saving", () => {
   test("each control saves its setting, keeping the others", async () => {
     const page = await settled(await optionsPage({ settings: { mode: "hide", collapsed: true } }));

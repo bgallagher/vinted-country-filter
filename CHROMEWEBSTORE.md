@@ -178,6 +178,8 @@ https://github.com/bgallagher/vinted-country-filter/blob/main/PRIVACY.md
 
 Keep `PRIVACY.md` in step with the data use answers above.
 
+The popup's "Share feedback" link opens a Google Form in a new tab. That isn't data the extension collects or sends, and `PRIVACY.md` says so (effective 2026-09-29), but it's the only link out of the extension: if you're asked about it in review, that's what it is.
+
 ## Distribution
 
 **Visibility**: Public (check in the dashboard)

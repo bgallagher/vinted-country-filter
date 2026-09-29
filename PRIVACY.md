@@ -1,6 +1,6 @@
 # Privacy Policy: Vinted Country Filter
 
-Effective: 24 September 2026
+Effective: 29 September 2026
 
 Vinted Country Filter ("the extension") is a browser extension that shows the
 country of each seller on Vinted listing pages, can dim or hide listings from sellers outside
@@ -55,6 +55,13 @@ The extension stores two things, both using your browser's built-in extension st
 - It does not send data to the developer or any other server.
 - It does not use data to create profiles, show ads, or determine creditworthiness.
 - It does not load or run code from outside the extension.
+
+## Feedback link
+
+The toolbar popup has a "Share feedback" link that opens a Google Form in a new browser tab. The
+extension sends nothing to it: the link is just a web address you can choose to open. If you
+fill the form in, your answers go to the developer through Google Forms, are optional, and are
+used only to improve the extension. Leave your email in the form only if you want a reply.
 
 ## Removing your data
 
