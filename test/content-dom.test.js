@@ -96,6 +96,7 @@ describe("badges", () => {
     };
     assert.deepEqual(await states({}), ["match", "other", "other"]);
     assert.deepEqual(await states({ url: "https://www.vinted.co.uk/catalog" }), ["other", "match", "other"]);
+    assert.deepEqual(await states({ url: "https://www.vinted.com.au/catalog", countries: { u1: "IE", u2: "AU", u3: "FR" } }), ["other", "match", "other"]);
     assert.deepEqual(await states({ settings: { country: "FR" } }), ["other", "other", "match"]);
   });
 });

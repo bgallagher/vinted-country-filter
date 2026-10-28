@@ -6,7 +6,7 @@ const VLF_TLD_COUNTRY = {
   ie: "IE", "co.uk": "GB", fr: "FR", de: "DE", es: "ES", it: "IT", nl: "NL", be: "BE",
   pl: "PL", pt: "PT", lt: "LT", lv: "LV", ee: "EE", cz: "CZ", sk: "SK", at: "AT",
   lu: "LU", se: "SE", fi: "FI", dk: "DK", gr: "GR", hu: "HU", ro: "RO", hr: "HR", si: "SI",
-  com: "US",
+  com: "US", "com.au": "AU",
 };
 const VLF_COUNTRIES = [...new Set(Object.values(VLF_TLD_COUNTRY))];
 
